@@ -37,20 +37,38 @@ A production-grade multi-tenant MCP server that provides different tools and con
    # Edit .env with your database URL, admin password, and session secret
    ```
 
-2. **Install dependencies**:
+2. **Start all services with Docker Compose** (recommended):
+   ```bash
+   docker-compose up
+   ```
+
+3. **Access the services**:
+   ```
+   http://localhost:8000       # Main API endpoint
+   http://localhost:3000       # Admin interface (on prod: https://yourdomain.com/admin)
+   http://localhost:8080       # Database inspector (Adminer)
+   # Login to admin with your SUPERADMIN_PASSWORD
+   ```
+
+That's it! Docker Compose handles all dependencies, database setup, and migrations automatically.
+
+### Alternative: Local Development Without Docker
+
+If you prefer to run without Docker:
+
+1. **Install dependencies**:
    ```bash
    uv sync
    ```
 
-3. **Run development server**:
+2. **Run development server**:
    ```bash
    python dev.py
    ```
 
-4. **Access admin interface**:
+3. **Access admin interface**:
    ```
-   http://localhost:3000 (on prod this will be just https://yourdomain.com/admin)
-   # Login with your SUPERADMIN_PASSWORD
+   http://localhost:3000
    ```
 
 ## API Endpoints

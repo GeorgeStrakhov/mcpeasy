@@ -27,6 +27,8 @@ dependencies = [
     "bcrypt>=4.2.1",
     "pgvector>=0.3.8",
     "pyyaml>=6.0.2",
+    "firecrawl-py>=2.9.0",
+    "exa_py>=1.14.9"
 ]
 
 [dependency-groups]

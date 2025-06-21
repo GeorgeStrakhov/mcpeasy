@@ -6,7 +6,9 @@ deployment:
   core_tools:
     - datetime
     - echo
+    - scrape
     - send_email
+    - take_screenshot
     - weather
     - youtube_lookup
   
