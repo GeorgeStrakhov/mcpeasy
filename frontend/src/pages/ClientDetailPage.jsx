@@ -9,6 +9,13 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -48,6 +55,7 @@ export default function ClientDetailPage() {
   const [showToolRemoveDialog, setShowToolRemoveDialog] = useState(false)
   const [selectedResource, setSelectedResource] = useState(null)
   const [showResourceDialog, setShowResourceDialog] = useState(false)
+  const [selectedToolToAdd, setSelectedToolToAdd] = useState(null)
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', clientId],
@@ -128,6 +136,7 @@ export default function ClientDetailPage() {
     mutationFn: ({ toolName, config }) => tools.configure(clientId, toolName, config),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries(['client', clientId])
+      setSelectedToolToAdd(null)
       toast({
         title: "Tool added",
         description: `Successfully added ${variables.toolName}.`,
@@ -285,16 +294,77 @@ export default function ClientDetailPage() {
 
           {/* Tools */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg sm:text-xl">
-                <Settings className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
-                Tools
-              </CardTitle>
-              <CardDescription className="text-sm">Configure available tools for this client</CardDescription>
+            <CardHeader className="space-y-4">
+              <div>
+                <CardTitle className="flex items-center text-lg sm:text-xl">
+                  <Settings className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
+                  Tools
+                </CardTitle>
+                <CardDescription className="text-sm">Configure available tools for this client</CardDescription>
+              </div>
+              {/* Add tool dropdown - only show if there are available tools to add */}
+              {client?.tools?.filter(t => !t.is_configured).length > 0 && (
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedToolToAdd?.name || ''}
+                    onValueChange={(toolName) => {
+                      const tool = client.tools.find(t => t.name === toolName)
+                      setSelectedToolToAdd(tool)
+                    }}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select a tool to add..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {client?.tools
+                        ?.filter(tool => !tool.is_configured)
+                        .map(tool => (
+                          <SelectItem key={tool.name} value={tool.name}>
+                            <div className="flex items-center gap-2">
+                              <span>{tool.name}</span>
+                              <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                                tool.name.includes('/') 
+                                  ? 'bg-purple-100 text-purple-700' 
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {tool.name.includes('/') ? 'CUSTOM' : 'CORE'}
+                              </span>
+                              {tool.requires_config && (
+                                <span className="text-xs text-blue-600">Config required</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={() => {
+                      if (selectedToolToAdd) {
+                        if (selectedToolToAdd.requires_config) {
+                          handleToolConfigure(selectedToolToAdd)
+                        } else {
+                          handleToolAdd(selectedToolToAdd)
+                        }
+                        setSelectedToolToAdd(null)
+                      }
+                    }}
+                    disabled={!selectedToolToAdd || addToolMutation.isPending}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {client?.tools?.map((tool) => (
+                {/* Only show enabled tools */}
+                {client?.tools?.filter(tool => tool.is_configured).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No tools enabled yet. Use the dropdown above to add tools.
+                  </p>
+                ) : (
+                  client?.tools?.filter(tool => tool.is_configured).map((tool) => (
                   <div key={tool.name} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -315,52 +385,34 @@ export default function ClientDetailPage() {
                       )}
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-2 sm:space-x-2">
-                      <div className={`px-2 py-1 text-xs rounded-full ${
-                        tool.is_configured 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {tool.is_configured ? 'Enabled' : 'Disabled'}
+                      <div className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                        Enabled
                       </div>
                       <div className="flex gap-2">
-                        {tool.is_configured ? (
-                          <>
-                            {tool.requires_config && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleToolConfigure(tool)}
-                                className="flex-shrink-0"
-                              >
-                                Configure
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleToolRemove(tool)}
-                              className="flex-shrink-0 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1 sm:mr-0" />
-                              <span className="sm:hidden">Remove</span>
-                            </Button>
-                          </>
-                        ) : (
+                        {tool.requires_config && (
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => tool.requires_config ? handleToolConfigure(tool) : handleToolAdd(tool)}
-                            disabled={addToolMutation.isPending}
+                            onClick={() => handleToolConfigure(tool)}
                             className="flex-shrink-0"
                           >
-                            {tool.requires_config ? 'Configure' : 
-                             (addToolMutation.isPending ? 'Adding...' : 'Add')}
+                            Configure
                           </Button>
                         )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToolRemove(tool)}
+                          className="flex-shrink-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1 sm:mr-0" />
+                          <span className="sm:hidden">Remove</span>
+                        </Button>
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -430,7 +482,13 @@ export default function ClientDetailPage() {
         tool={selectedTool}
         clientId={clientId}
         isOpen={showToolDialog}
-        onOpenChange={setShowToolDialog}
+        onOpenChange={(open) => {
+          setShowToolDialog(open)
+          // Clear the selected tool to add when dialog closes
+          if (!open) {
+            setSelectedToolToAdd(null)
+          }
+        }}
       />
 
       {/* Resource Configuration Dialog */}
