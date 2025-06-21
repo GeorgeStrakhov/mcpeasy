@@ -4,6 +4,7 @@ deployment:
   
   # Core tools to include in this deployment
   core_tools:
+    - browse
     - datetime
     - echo
     - scrape

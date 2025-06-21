@@ -554,8 +554,8 @@ async def execute_tool(name: str, arguments: dict, config: dict = None,
 ```
 
 ### Request Timeout Protection
-- ✅ **30-second timeouts**: All tool executions wrapped with `asyncio.wait_for()`
-- ✅ **Graceful timeout handling**: Proper error responses for timed-out tools
+- ✅ **30-second s**: All tool executions wrapped with `asyncio.wait_for()`
+- ✅ **Graceful  handling**: Proper error responses for timed-out tools
 - ✅ **Worker protection**: Prevents runaway tools from blocking workers
 
 ```python
