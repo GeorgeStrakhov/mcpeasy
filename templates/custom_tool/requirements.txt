@@ -1,0 +1,25 @@
+# Custom dependencies for this tool
+# These will be automatically installed during Docker build
+
+# Example: Payment processing
+stripe==5.4.0
+
+# Example: Data processing (uncomment if needed)
+# pandas>=1.5.0,<2.0.0
+# numpy>=1.24.0
+
+# Example: Additional HTTP client (uncomment if requests isn't sufficient)
+# httpx>=0.24.0
+
+# Example: Date/time handling (uncomment if needed)
+# python-dateutil>=2.8.0
+
+# Example: File processing (uncomment if needed)
+# openpyxl>=3.1.0  # For Excel files
+# Pillow>=9.0.0    # For image processing
+
+# IMPORTANT: 
+# - Use specific versions to avoid conflicts
+# - Keep dependencies minimal
+# - Prefer existing mcpeasy dependencies when possible
+# - Test thoroughly before deploying

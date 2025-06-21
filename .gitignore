@@ -1,0 +1,35 @@
+.DS_Store
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+.env
+.env.local
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+cookies.txt
+
+# Custom tools and resources (git submodules contents)
+src/custom_tools/*/
+src/custom_resources/*/
+
+# Keep structure files
+!src/custom_tools/.gitkeep
+!src/custom_tools/README.md
+!src/custom_resources/.gitkeep
+!src/custom_resources/README.md
+
+# Custom migrations
+src/migrations/versions/*_custom_*.py

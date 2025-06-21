@@ -1,0 +1,35 @@
+# Development Dockerfile with live reload
+FROM python:3.12-slim
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+# Set working directory
+WORKDIR /app
+
+# Copy uv files first for better caching
+COPY pyproject.toml uv.lock ./
+
+# Install all dependencies including dev dependencies
+RUN uv sync --frozen --no-cache --group dev
+
+# Copy source code (will be overridden by volume mount)
+COPY src/ src/
+COPY config/ config/
+COPY dev.py ./
+
+# Install custom dependencies from submodules (if any exist)
+# This step runs after copying source to discover any custom requirements.txt files
+RUN find src/custom_tools src/custom_resources -name "requirements.txt" 2>/dev/null | \
+    xargs -r -I {} uv pip install -r {} || true
+
+# Expose port
+EXPOSE 8000
+
+# Set environment variables
+ENV PYTHONPATH=/app/src
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+ENV DEVELOPMENT=true
+
+# Run migrations first, then start app with auto-reload
+CMD ["sh", "-c", "cd src/migrations && uv run alembic upgrade head && cd /app && uv run python dev.py --reload"]

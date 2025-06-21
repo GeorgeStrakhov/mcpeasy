@@ -1,0 +1,30 @@
+deployment:
+  name: "default"
+  description: "Default deployment configuration for mcpeasy"
+  
+  # Core tools to include in this deployment
+  core_tools:
+    - datetime
+    - echo
+    - send_email
+    - weather
+    - youtube_lookup
+  
+  # Custom tool packages to include (from submodules)
+  # Format: {org-name}/{tool-name}
+  custom_tools:
+    - testorg/test_calculator
+    # Example:
+    # - acme/invoice_generator
+    # - widgets-inc/reporting
+  
+  # Core resources to include in this deployment  
+  core_resources:
+    - knowledge
+  
+  # Custom resource packages to include (from submodules)
+  # Format: {org-name}/{resource-name}
+  custom_resources: []
+    # Example:
+    # - acme/product_catalog
+    # - widgets-inc/customer_data

@@ -1,0 +1,39 @@
+[project]
+name = "mcpeasy"
+version = "0.1.0"
+description = "A multi-mcp server"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.16.1",
+    "asyncpg>=0.30.0",
+    "fastapi-sessions>=0.3.2",
+    "fastapi>=0.115.12",
+    "fastmcp>=2.7.0",
+    "httpx>=0.28.1",
+    "pydantic>=2.11.5",
+    "python-dotenv>=1.1.0",
+    "sqlalchemy>=2.0.41",
+    "uvicorn[standard]>=0.34.3",
+    "starlette-session>=0.4.3",
+    "greenlet>=3.2.3",
+    "datetime>=5.5",
+    "uuid>=1.30",
+    "watchdog>=6.0.0",
+    "postmarker>=1.0",
+    "aiohttp>=3.10.0",
+    "openai>=1.84.0",
+    "psycopg2-binary>=2.9.10",
+    "bcrypt>=4.2.1",
+    "pgvector>=0.3.8",
+    "pyyaml>=6.0.2",
+]
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "pytest>=8.4.0",
+    "pytest-asyncio>=1.0.0",
+    "ruff>=0.11.13",
+    "watchdog>=6.0.0",
+]

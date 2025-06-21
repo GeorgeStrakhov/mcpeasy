@@ -1,0 +1,30 @@
+# Custom dependencies for this resource
+# These will be automatically installed during Docker build
+
+# Example: Data processing and analysis
+pandas>=1.5.0,<2.0.0
+numpy>=1.24.0
+
+# Example: Excel file processing (uncomment if needed)
+# openpyxl>=3.1.0
+
+# Example: CSV processing with better performance (uncomment if needed)
+# polars>=0.18.0
+
+# Example: Additional HTTP client (uncomment if requests isn't sufficient)
+# httpx>=0.24.0
+
+# Example: Database drivers (uncomment if needed)
+# pymongo>=4.0.0       # For MongoDB
+# redis>=4.5.0         # For Redis
+
+# Example: File format support (uncomment if needed)
+# PyYAML>=6.0          # Already in mcpeasy core
+# toml>=0.10.0         # For TOML files
+# xmltodict>=0.13.0    # For XML processing
+
+# IMPORTANT: 
+# - Use specific versions to avoid conflicts
+# - Keep dependencies minimal
+# - Prefer existing mcpeasy dependencies when possible
+# - Test thoroughly before deploying
