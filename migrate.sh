@@ -15,6 +15,11 @@ check_db() {
     fi
 }
 
+# Load environment variables from .env file (before changing directory)
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
 # Change to migrations directory
 cd src/migrations
 

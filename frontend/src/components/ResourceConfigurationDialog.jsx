@@ -248,17 +248,6 @@ export default function ResourceConfigurationDialog({
         </div>
 
         <DialogFooter className="flex justify-between">
-          <div>
-            {resource.is_configured && (
-              <Button
-                variant="destructive"
-                onClick={handleRemove}
-                disabled={removeResourceMutation.isPending}
-              >
-                {removeResourceMutation.isPending ? 'Removing...' : 'Remove Resource'}
-              </Button>
-            )}
-          </div>
           <div className="space-x-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

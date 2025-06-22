@@ -30,10 +30,19 @@ class RESOURCE_NAMEResource(BaseResource):
     - List available resources with filtering
     - Read resource content with proper error handling
     - Handle different MIME types
+    - Auto-seed data on first use (optional)
     """
     
     name = "RESOURCE_NAME"  # Replace with your resource name (no spaces, lowercase)
     description = "Description of what your resource provides"
+    uri_scheme = "resource_name"  # Replace with your URI scheme (e.g., 'knowledge', 'files')
+    
+    # Optional: Auto-seed data when table is empty
+    # Can be a local file path (relative to resource directory) or URL
+    # seed_source = "seeds/initial_data.csv"  # Local CSV file
+    # seed_source = "seeds/initial_data.json"  # Local JSON file
+    # seed_source = "https://example.com/data/seed.csv"  # Remote CSV
+    # seed_source = "https://example.com/data/seed.json"  # Remote JSON
     
     @classmethod
     def get_config_schema(cls) -> Optional[Dict[str, Any]]:
@@ -270,3 +279,9 @@ class RESOURCE_NAMEResource(BaseResource):
             return "application/json"
         else:
             return "text/plain"  # Default
+    
+    # Optional: Override this method if your resource uses a database table
+    # async def _get_model_class(self):
+    #     """Return the SQLAlchemy model class for seeding"""
+    #     from .models import YourResourceModel
+    #     return YourResourceModel

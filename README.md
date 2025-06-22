@@ -130,8 +130,67 @@ Each client must explicitly configure resources to access them:
 
 ### Available Resources
 
+**Namespaced Resource System:**
+Resources follow the same namespacing pattern as tools for better organization:
+
+**Core Resources:**
 - `knowledge` - Knowledge base articles and categories (configurable: allowed_categories, max_articles, allow_search, excluded_tags)
-- (Resource ecosystem grows with auto-discovery)
+
+**Custom Resources (namespace: `{org}/`):**
+- `myorg/knowledge` - Example of a namespaced resource
+- Custom resources can be added in organization-specific namespaces
+- Each deployment can control which resources are available via environment configuration
+
+**Resource Discovery:**
+- Use `RESOURCES=__all__` to automatically discover and enable all available resources
+- Or specify exact resources: `RESOURCES='knowledge,myorg/product_catalog'`
+- Directory structure: `src/resources/{namespace}/{resource_name}/resource.py` or `src/resources/{resource_name}/resource.py`
+
+### Resource Auto-Seeding
+
+Resources can automatically seed initial data when their table is empty, perfect for:
+- **Reference data**: Countries, categories, product catalogs
+- **Demo content**: Sample articles, documentation
+- **Initial configuration**: Default settings, presets
+
+**How It Works:**
+1. Resource checks if its table is empty on first initialization
+2. If empty, loads seed data from configured source (CSV/JSON file or URL)
+3. Inserts data into database with proper field mapping
+4. Only runs once - subsequent startups skip seeding
+
+**Setup Example:**
+```python
+class ProductCatalogResource(BaseResource):
+    name = "myorg/products"
+    seed_source = "seeds/initial_products.csv"  # Local file
+    # seed_source = "https://cdn.myorg.com/products.csv"  # Or remote URL
+    
+    async def _get_model_class(self):
+        from .models import Product
+        return Product
+```
+
+**Supported Formats:**
+- **CSV**: Column names match model fields, empty strings become NULL
+- **JSON**: Array of objects with field names as keys
+- **Remote URLs**: Fetch seed data from CDNs or APIs
+
+**Example Seed Files:**
+```csv
+# seeds/products.csv
+id,name,category,price,description
+1,Widget A,widgets,29.99,Premium widget
+2,Widget B,widgets,39.99,Deluxe widget
+```
+
+```json
+// seeds/products.json
+[
+  {"id": 1, "name": "Widget A", "category": "widgets", "price": 29.99},
+  {"id": 2, "name": "Widget B", "category": "widgets", "price": 39.99}
+]
+```
 
 ## Configuration
 
@@ -240,12 +299,78 @@ class MyCustomTool(BaseTool):
 
 **Important**: Never use blocking operations directly in the `execute()` method as it will block the entire event loop and affect other tool executions.
 
+## Custom Resources Development
+
+MCPeasy supports adding organization-specific resources with automatic data seeding capabilities:
+
+### Quick Custom Resource Setup
+
+1. **Create namespace directory**: `mkdir -p src/resources/yourorg`
+2. **Add your resource**: Create `src/resources/yourorg/yourresource/resource.py` with implementation
+3. **Auto-discovery**: Resource automatically discovered as `yourorg/yourresource`
+4. **Configure environment**: 
+   - Use `RESOURCES=__all__` to enable all resources automatically
+   - Or specify: `RESOURCES='knowledge,yourorg/yourresource'`
+5. **Optional seeding**: Add `seed_source` and `seeds/` directory for initial data
+6. **Enable for clients**: Use admin UI to configure resources per client
+
+### Directory Structure
+
+```
+src/resources/
+├── knowledge/               # Core resources (simple)
+├── myorg/                   # Namespaced resources
+│   └── knowledge/
+│       ├── resource.py
+│       ├── models.py
+│       └── seeds/
+│           ├── articles.csv
+│           └── categories.json
+└── yourorg/                 # Your organization's resources
+    ├── product_catalog/
+    │   ├── resource.py
+    │   ├── models.py
+    │   └── seeds/
+    │       └── products.csv
+    └── customer_data/
+        ├── resource.py
+        └── models.py
+```
+
+### Custom Resource with Auto-Seeding
+
+```python
+from src.resources.base import BaseResource
+from src.resources.types import MCPResource, ResourceContent
+
+class ProductCatalogResource(BaseResource):
+    name = "yourorg/products"
+    description = "Product catalog with pricing and inventory"
+    uri_scheme = "products"
+    
+    # Optional: Auto-seed when table is empty
+    seed_source = "seeds/initial_products.csv"
+    
+    async def _get_model_class(self):
+        from .models import Product
+        return Product
+    
+    async def list_resources(self, config=None):
+        # Implementation with client-specific filtering
+        pass
+    
+    async def read_resource(self, uri: str, config=None):
+        # Implementation with access control
+        pass
+```
+
 ### Templates and Documentation
 
-- **Templates**: Complete tool/resource templates in `templates/` directory
-- **Best practices**: Examples show proper dependency management and configuration
-- **Namespace organization**: Clean separation between core and custom tools
+- **Templates**: Complete tool/resource templates in `templates/` directory with auto-seeding examples
+- **Best practices**: Examples show proper dependency management, configuration, and data seeding
+- **Namespace organization**: Clean separation between core and custom tools/resources
 - **Environment variable discovery**: Simple TOOLS and RESOURCES configuration
+- **Seed data examples**: CSV and JSON seed file templates included
 
 ## Development
 

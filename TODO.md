@@ -1,5 +1,3 @@
-- CORE: figure out how resources can seed data
-
 - ADMIN: export / import tool configs in the admin. export / import entire DB in the admin.
 
 - TOOL: search (behind the scenes can use exa, serpapi, firecrawl)

@@ -1,0 +1,6 @@
+id,name,category,description,priority
+item1,Example Item 1,documents,First example item for documentation,1
+item2,Example Item 2,images,Second example item with images,2
+item3,API Reference,documents,Complete API documentation,1
+item4,User Guide,documents,Step-by-step user guide,3
+item5,Sample Images,images,Collection of sample images,2

@@ -20,6 +20,7 @@ from .database import DatabaseService
 from .server.factory import MCPServerFactory
 from .admin import admin_router
 from .tools.registry import tool_registry
+from .resources.registry import resource_registry
 
 load_dotenv()
 
@@ -62,6 +63,9 @@ async def lifespan(app: FastAPI):
     
     # Start the tool execution queue
     await tool_registry.ensure_queue_started()
+    
+    # Initialize resource registry with database (triggers seeding if needed)
+    resource_registry.initialize(app.state.db)
     
     yield
     

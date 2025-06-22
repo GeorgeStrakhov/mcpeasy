@@ -27,6 +27,11 @@ This template provides a starting point for creating custom MCP resources.
 your_resource_name/
 ├── __init__.py          # Package initialization
 ├── resource.py          # Main resource implementation
+├── models.py            # SQLAlchemy models (if database-backed)
+├── seeds/               # Optional seed data directory
+│   ├── example_data.csv # CSV seed data
+│   └── example_data.json # JSON seed data
+├── requirements.txt     # Custom dependencies (if any)
 └── README.md            # This documentation
 ```
 
@@ -190,6 +195,71 @@ print(f"Found {len(resources)} resources")
 content = await resource.read_resource("company://products/123", {"api_key": "test_key"})
 print(content.text)
 ```
+
+## Auto-Seeding Data (Optional)
+
+Resources can automatically seed initial data when their table is empty. This is useful for:
+- Reference data (countries, categories, etc.)
+- Demo/sample data
+- Initial configuration
+
+### How to Enable Seeding
+
+1. **Add seed_source to your resource class**:
+   ```python
+   class YourResource(BaseResource):
+       name = "your_resource"
+       seed_source = "seeds/initial_data.csv"  # or .json
+   ```
+
+2. **Create seed data files**:
+   - CSV: Column names should match your model fields
+   - JSON: Array of objects with field names as keys
+   - Can also use URLs: `seed_source = "https://example.com/data/seed.csv"`
+
+3. **Override _get_model_class() if using database**:
+   ```python
+   async def _get_model_class(self):
+       from .models import YourModel
+       return YourModel
+   ```
+
+### Seed Data Formats
+
+**CSV Format** (`seeds/data.csv`):
+```csv
+id,name,category,description,priority
+1,Item One,documents,First item description,1
+2,Item Two,images,Second item description,2
+```
+
+**JSON Format** (`seeds/data.json`):
+```json
+[
+  {
+    "id": 1,
+    "name": "Item One",
+    "category": "documents",
+    "description": "First item description",
+    "priority": 1
+  },
+  {
+    "id": 2,
+    "name": "Item Two",
+    "category": "images",
+    "description": "Second item description",
+    "priority": 2
+  }
+]
+```
+
+### Seeding Behavior
+
+- Only runs when table is completely empty
+- Runs automatically on first resource initialization
+- No versioning or merging - it's a one-time operation
+- Logs success/failure for debugging
+- Non-blocking - failures won't prevent resource from working
 
 ## Next Steps
 

@@ -44,6 +44,38 @@ def discover_custom_models():
                         print(f"Warning: Could not import {module_path}: {e}")
                     except Exception as e:
                         print(f"Error importing {module_path}: {e}")
+    
+    # Also scan src/resources for namespaced custom resources
+    # Note: we're running from src/migrations, so we need to go up two levels
+    resources_path = Path("../resources")
+    if resources_path.exists():
+        for item in resources_path.iterdir():
+            if item.is_dir() and not item.name.startswith('.') and item.name != "__pycache__":
+                # Check for direct models.py (simple resource)
+                models_file = item / "models.py"
+                if models_file.exists():
+                    try:
+                        module_path = f"src.resources.{item.name}.models"
+                        importlib.import_module(module_path)
+                        print(f"Discovered resource models: {module_path}")
+                    except ImportError as e:
+                        print(f"Warning: Could not import {module_path}: {e}")
+                    except Exception as e:
+                        print(f"Error importing {module_path}: {e}")
+                
+                # Check for namespaced resources (org/resource structure)
+                for subitem in item.iterdir():
+                    if subitem.is_dir() and not subitem.name.startswith('.'):
+                        namespaced_models = subitem / "models.py"
+                        if namespaced_models.exists():
+                            try:
+                                module_path = f"src.resources.{item.name}.{subitem.name}.models"
+                                importlib.import_module(module_path)
+                                print(f"Discovered namespaced resource models: {module_path}")
+                            except ImportError as e:
+                                print(f"Warning: Could not import {module_path}: {e}")
+                            except Exception as e:
+                                print(f"Error importing {module_path}: {e}")
 
 # Discover custom models to include in metadata
 discover_custom_models()
