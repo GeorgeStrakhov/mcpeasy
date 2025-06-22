@@ -33,11 +33,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { ArrowLeft, Plus, Copy, Settings, Key, Shield, BarChart3, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Copy, Settings, Key, Shield, Pickaxe, BookOpenText, BarChart3, Trash2, MessageSquare } from 'lucide-react'
 import ToolConfigurationDialog from '@/components/ToolConfigurationDialog'
 import ResourceConfigurationDialog from '@/components/ResourceConfigurationDialog'
 import ToolCallsStats from '@/components/ToolCallsStats'
 import ToolCallsTable from '@/components/ToolCallsTable'
+import SystemPromptPanel from '@/components/SystemPromptPanel'
 import config from '@/config'
 
 export default function ClientDetailPage() {
@@ -231,65 +232,71 @@ export default function ClientDetailPage() {
           </TabsList>
 
           <TabsContent value="configuration" className="space-y-6">
-            {/* API Keys - Full width at top */}
-            <Card>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center text-lg sm:text-xl">
-                  <Key className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
-                  API Keys
-                </CardTitle>
-                <CardDescription className="text-sm">Manage API keys for this client</CardDescription>
-              </div>
-              <Button onClick={() => setShowKeyDialog(true)} className="w-full sm:w-auto">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Key
-              </Button>
-            </CardHeader>
-
-            <CardContent>
-              <div className="space-y-4">
-                {client?.api_keys?.map((key) => (
-                  <div key={key.id} className="p-3 sm:p-4 border rounded-lg">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-2 mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm sm:text-base">{key.name}</h3>
-                        <p className="text-xs text-muted-foreground font-mono break-all mt-1">
-                          {key.key_value}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Created: {new Date(key.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyToClipboard(
-                            config.getMcpUrl(key.key_value),
-                            "MCP URL copied to clipboard"
-                          )}
-                          className="flex-shrink-0"
-                        >
-                          <Copy className="h-4 w-4 mr-2 sm:mr-0" />
-                          <span className="sm:hidden">Copy MCP URL</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleKeyRemove(key)}
-                          className="flex-shrink-0 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1 sm:mr-0" />
-                          <span className="sm:hidden">Delete</span>
-                        </Button>
-                      </div>
-                    </div>
+            {/* API Keys and System Prompt - Side by side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+              {/* API Keys */}
+              <Card>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center text-lg sm:text-xl">
+                      <Key className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
+                      API Keys
+                    </CardTitle>
+                    <CardDescription className="text-sm">Manage API keys for this client</CardDescription>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <Button onClick={() => setShowKeyDialog(true)} className="w-full sm:w-auto">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Key
+                  </Button>
+                </CardHeader>
+
+                <CardContent>
+                  <div className="space-y-4">
+                    {client?.api_keys?.map((key) => (
+                      <div key={key.id} className="p-3 sm:p-4 border rounded-lg">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm sm:text-base">{key.name}</h3>
+                            <p className="text-xs text-muted-foreground font-mono break-all mt-1">
+                              {key.key_value}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Created: {new Date(key.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => copyToClipboard(
+                                config.getMcpUrl(key.key_value),
+                                "MCP URL copied to clipboard"
+                              )}
+                              className="flex-shrink-0"
+                            >
+                              <Copy className="h-4 w-4 mr-2 sm:mr-0" />
+                              <span className="sm:hidden">Copy MCP URL</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleKeyRemove(key)}
+                              className="flex-shrink-0 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1 sm:mr-0" />
+                              <span className="sm:hidden">Delete</span>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* System Prompt */}
+              {client?.client && <SystemPromptPanel client={client.client} copyToClipboard={copyToClipboard} />}
+            </div>
 
             {/* Tools and Resources - Side by side */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
@@ -298,7 +305,7 @@ export default function ClientDetailPage() {
             <CardHeader className="space-y-4">
               <div>
                 <CardTitle className="flex items-center text-lg sm:text-xl">
-                  <Settings className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
+                  <Pickaxe className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
                   Tools
                 </CardTitle>
                 <CardDescription className="text-sm">Configure available tools for this client</CardDescription>
@@ -419,7 +426,7 @@ export default function ClientDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center text-lg sm:text-xl">
-                <Shield className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
+                <BookOpenText className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
                 Resources
               </CardTitle>
               <CardDescription className="text-sm">Configure available resources for this client</CardDescription>

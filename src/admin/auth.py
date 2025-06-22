@@ -4,7 +4,7 @@ Admin authentication utilities
 from typing import Optional
 from fastapi import HTTPException, Request, status
 
-from ..database import DatabaseService
+from src.database import DatabaseService
 
 
 def verify_admin_session(request: Request) -> bool:

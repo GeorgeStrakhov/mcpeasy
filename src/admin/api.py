@@ -3,16 +3,18 @@ API endpoints for admin interface
 """
 import secrets
 import json
+import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Request, HTTPException, Depends
 from pydantic import BaseModel
 
-from ..database import DatabaseService
-from ..tools.registry import tool_registry
-from ..resources.registry import resource_registry
-from ..server.factory import clear_config_cache
-from .auth import require_admin_auth, authenticate_admin, verify_admin_session, logout_admin, get_current_admin_username
+from src.database import DatabaseService
+from src.tools.registry import tool_registry
+from src.resources.registry import resource_registry
+from src.server.factory import clear_config_cache
+from src.utils.prompt_generator import generate_system_prompt
+from src.admin.auth import require_admin_auth, authenticate_admin, verify_admin_session, logout_admin, get_current_admin_username
 
 
 # Request/Response models
@@ -75,6 +77,37 @@ class ClientDetailResponse(BaseModel):
     api_keys: List[ApiKeySummary]
     tools: List[ToolInfo]
     resources: List[ResourceInfo]
+
+class SystemPromptSummary(BaseModel):
+    id: int
+    version: int
+    user_requirements: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+class GeneratePromptRequest(BaseModel):
+    user_requirements: str
+    is_revision: bool = False
+    parent_version_id: Optional[int] = None
+
+class SavePromptRequest(BaseModel):
+    prompt_text: str
+    user_requirements: str
+    generation_context: Dict[str, Any]
+    parent_version_id: Optional[int] = None
+
+class SystemPromptResponse(BaseModel):
+    id: int
+    client_id: str
+    prompt_text: str
+    version: int
+    user_requirements: str
+    generation_context: Dict[str, Any]
+    is_active: bool
+    parent_version_id: Optional[int]
+    created_at: datetime
+    updated_at: datetime
 
 
 router = APIRouter()
@@ -766,3 +799,182 @@ async def change_admin_password(
         raise HTTPException(status_code=404, detail="Admin not found")
     
     return {"success": True, "message": "Password changed successfully"}
+
+
+# System Prompt API Routes
+
+@router.get("/clients/{client_id}/prompts", response_model=List[SystemPromptSummary])
+async def get_client_prompts(client_id: str, request: Request, admin: str = Depends(require_admin_auth)):
+    """Get all system prompts for a client"""
+    db: DatabaseService = request.app.state.db
+    
+    try:
+        # Validate UUID format
+        try:
+            uuid.UUID(client_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid client ID format: {client_id}")
+            
+        prompts = await db.list_system_prompts(client_id)
+        return [
+            SystemPromptSummary(
+                id=prompt.id,
+                version=prompt.version,
+                user_requirements=prompt.user_requirements,
+                is_active=prompt.is_active,
+                created_at=prompt.created_at,
+                updated_at=prompt.updated_at
+            )
+            for prompt in prompts
+        ]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/clients/{client_id}/prompts/generate")
+async def generate_system_prompt_endpoint(
+    client_id: str, 
+    request: Request, 
+    generate_request: GeneratePromptRequest,
+    admin: str = Depends(require_admin_auth)
+):
+    """Generate a new system prompt using LLM"""
+    db: DatabaseService = request.app.state.db
+    
+    try:
+        # Validate UUID format
+        try:
+            uuid.UUID(client_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid client ID format: {client_id}")
+        # Get client and their configurations
+        client = await db.get_client(client_id)
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Get tool configurations for this client
+        tool_configs = await db.get_tool_configurations(client.id)
+        enabled_tools = list(tool_configs.keys())
+        
+        # Get resource configurations for this client
+        resource_configs = await db.get_resource_configurations(client.id)
+        enabled_resources = list(resource_configs.keys())
+        
+        # Get previous prompt if this is a revision
+        previous_prompt = None
+        if generate_request.is_revision and generate_request.parent_version_id:
+            parent_prompt = await db.get_system_prompt(generate_request.parent_version_id)
+            if parent_prompt:
+                previous_prompt = parent_prompt.prompt_text
+        
+        # Generate the prompt using utility function
+        generated_prompt = await generate_system_prompt(
+            tool_registry=tool_registry,
+            resource_registry=resource_registry,
+            enabled_tools=enabled_tools,
+            enabled_resources=enabled_resources,
+            user_requirements=generate_request.user_requirements,
+            is_revision=generate_request.is_revision,
+            previous_prompt=previous_prompt
+        )
+        
+        return {"prompt_text": generated_prompt}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/clients/{client_id}/prompts", response_model=SystemPromptResponse)
+async def save_system_prompt(
+    client_id: str,
+    request: Request,
+    save_request: SavePromptRequest,
+    admin: str = Depends(require_admin_auth)
+):
+    """Save a system prompt"""
+    db: DatabaseService = request.app.state.db
+    
+    try:
+        # Validate UUID format
+        try:
+            uuid.UUID(client_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid client ID format: {client_id}")
+        prompt = await db.create_system_prompt(
+            client_id=client_id,
+            prompt_text=save_request.prompt_text,
+            user_requirements=save_request.user_requirements,
+            generation_context=save_request.generation_context,
+            parent_version_id=save_request.parent_version_id
+        )
+        
+        return SystemPromptResponse(
+            id=prompt.id,
+            client_id=str(prompt.client_id),
+            prompt_text=prompt.prompt_text,
+            version=prompt.version,
+            user_requirements=prompt.user_requirements,
+            generation_context=prompt.generation_context,
+            is_active=prompt.is_active,
+            parent_version_id=prompt.parent_version_id,
+            created_at=prompt.created_at,
+            updated_at=prompt.updated_at
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/prompts/{prompt_id}", response_model=SystemPromptResponse)
+async def get_system_prompt(prompt_id: int, request: Request, admin: str = Depends(require_admin_auth)):
+    """Get a specific system prompt by ID"""
+    db: DatabaseService = request.app.state.db
+    
+    try:
+        prompt = await db.get_system_prompt(prompt_id)
+        if not prompt:
+            raise HTTPException(status_code=404, detail="System prompt not found")
+            
+        return SystemPromptResponse(
+            id=prompt.id,
+            client_id=str(prompt.client_id),
+            prompt_text=prompt.prompt_text,
+            version=prompt.version,
+            user_requirements=prompt.user_requirements,
+            generation_context=prompt.generation_context,
+            is_active=prompt.is_active,
+            parent_version_id=prompt.parent_version_id,
+            created_at=prompt.created_at,
+            updated_at=prompt.updated_at
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/clients/{client_id}/prompts/active/{prompt_id}")
+async def set_active_system_prompt(
+    client_id: str,
+    prompt_id: int,
+    request: Request,
+    admin: str = Depends(require_admin_auth)
+):
+    """Set a system prompt as active"""
+    db: DatabaseService = request.app.state.db
+    
+    try:
+        # Validate UUID format
+        try:
+            uuid.UUID(client_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid client ID format: {client_id}")
+        success = await db.set_active_system_prompt(client_id, prompt_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="System prompt not found or doesn't belong to client")
+            
+        return {"success": True, "message": "System prompt activated successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

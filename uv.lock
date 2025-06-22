@@ -385,6 +385,22 @@ wheels = [
 ]
 
 [[package]]
+name = "exa-py"
+version = "1.14.10"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "openai" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2c/4a/4459e2a4528c0a45f41934e1f46687004a45f2c44b9b3d5aaf97ee525ceb/exa_py-1.14.10.tar.gz", hash = "sha256:2606c8ed341528b5151b3e43e3552e28ff490c814b2bbac34104e0b7f53977f6", size = 30798 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/02/70/d283390e915f1975ec5693e8e19a1f37a8d0015ad8d6aa7030166041712d/exa_py-1.14.10-py3-none-any.whl", hash = "sha256:cead967faddf26ca80b234186b99454bf79d385957d00f9174ced95d31bec68d", size = 39399 },
+]
+
+[[package]]
 name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -440,6 +456,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ad/a5/d156051c08915c2ca7c97583dac4547f17fcbf09918727c36ca0e6cd6ea7/fastmcp-2.7.0.tar.gz", hash = "sha256:6a081400ed46e1b74fbda3f5b7f806180f4091b7bf36bd4c52d7074934767004", size = 1590831 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/74/3f/88fd54bbec9a3c619f94c61b84473a49c3af24582a9cc64059fdefeef98b/fastmcp-2.7.0-py3-none-any.whl", hash = "sha256:5e0827a37bc71656edebb5f217423ce6f838d8f0e42f79c9f803349c0366fc80", size = 127452 },
+]
+
+[[package]]
+name = "firecrawl-py"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "nest-asyncio" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/63/97/12a06c76c4796e2d9fe49e536c6b77bb5c2871e087cc9c351a9cc1d58bf7/firecrawl_py-2.9.0.tar.gz", hash = "sha256:075e17684d8489a06cc9ca62f04d6e4ec808d7341f54c3b429b68ce6a689f95e", size = 38936 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/fa/b5d3e60ba476c631e44df497c946906c38f3fbe8987137e0fcfa801089f2/firecrawl_py-2.9.0-py3-none-any.whl", hash = "sha256:7772915ef14b89500d6f07b83693b575c12b63f064d8bb412723e9c516fbf2da", size = 73368 },
 ]
 
 [[package]]
@@ -770,9 +803,11 @@ dependencies = [
     { name = "asyncpg" },
     { name = "bcrypt" },
     { name = "datetime" },
+    { name = "exa-py" },
     { name = "fastapi" },
     { name = "fastapi-sessions" },
     { name = "fastmcp" },
+    { name = "firecrawl-py" },
     { name = "greenlet" },
     { name = "httpx" },
     { name = "openai" },
@@ -805,9 +840,11 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "bcrypt", specifier = ">=4.2.1" },
     { name = "datetime", specifier = ">=5.5" },
+    { name = "exa-py", specifier = ">=1.14.9" },
     { name = "fastapi", specifier = ">=0.115.12" },
     { name = "fastapi-sessions", specifier = ">=0.3.2" },
     { name = "fastmcp", specifier = ">=2.7.0" },
+    { name = "firecrawl-py", specifier = ">=2.9.0" },
     { name = "greenlet", specifier = ">=3.2.3" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "openai", specifier = ">=1.84.0" },
@@ -909,6 +946,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8dac321cda606860fa4548858c0cc45d9d1d4ca2628b/mypy_extensions-1.1.0.tar.gz", hash = "sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558", size = 6343 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963 },
+]
+
+[[package]]
+name = "nest-asyncio"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/83/f8/51569ac65d696c8ecbee95938f89d4abf00f47d58d48f6fbabfe8f0baefe/nest_asyncio-1.6.0.tar.gz", hash = "sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe", size = 7418 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/c4/c2971a3ba4c6103a3d10c4b0f24f461ddc027f0f09763220cf35ca1401b3/nest_asyncio-1.6.0-py3-none-any.whl", hash = "sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c", size = 5195 },
 ]
 
 [[package]]

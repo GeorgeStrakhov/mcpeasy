@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import func, or_, and_, cast, String
 from contextlib import asynccontextmanager
 
-from .models import Base, Admin, KnowledgeBase, Client, APIKey, ToolConfiguration, ResourceConfiguration, ToolCall
+from .models import Base, Admin, KnowledgeBase, Client, APIKey, ToolConfiguration, ResourceConfiguration, ToolCall, SystemPrompt
 
 logger = logging.getLogger(__name__)
 
@@ -884,3 +884,109 @@ class DatabaseService:
                 "top_tools": top_tools,
                 "period_days": days
             }
+    
+    # System Prompt Methods
+    async def create_system_prompt(
+        self,
+        client_id: Union[str, uuid.UUID],
+        prompt_text: str,
+        user_requirements: str,
+        generation_context: Dict[str, Any],
+        parent_version_id: Optional[int] = None
+    ) -> SystemPrompt:
+        """Create a new system prompt version"""
+        if isinstance(client_id, str):
+            client_id = uuid.UUID(client_id)
+            
+        async with self.get_session() as session:
+            # Get next version number for this client
+            version_query = select(func.coalesce(func.max(SystemPrompt.version), 0) + 1).where(
+                SystemPrompt.client_id == client_id
+            )
+            version_result = await session.execute(version_query)
+            next_version = version_result.scalar()
+            
+            # Create new system prompt
+            system_prompt = SystemPrompt(
+                client_id=client_id,
+                prompt_text=prompt_text,
+                version=next_version,
+                user_requirements=user_requirements,
+                generation_context=generation_context,
+                parent_version_id=parent_version_id,
+                is_active=False  # Don't auto-activate, let user choose
+            )
+            
+            session.add(system_prompt)
+            await session.commit()
+            await session.refresh(system_prompt)
+            
+            return system_prompt
+    
+    async def get_active_system_prompt(self, client_id: Union[str, uuid.UUID]) -> Optional[SystemPrompt]:
+        """Get the active system prompt for a client"""
+        if isinstance(client_id, str):
+            client_id = uuid.UUID(client_id)
+            
+        async with self.get_session() as session:
+            query = select(SystemPrompt).where(
+                and_(
+                    SystemPrompt.client_id == client_id,
+                    SystemPrompt.is_active == True
+                )
+            )
+            result = await session.execute(query)
+            return result.scalar_one_or_none()
+    
+    async def get_system_prompt(self, prompt_id: int) -> Optional[SystemPrompt]:
+        """Get a specific system prompt by ID"""
+        async with self.get_session() as session:
+            query = select(SystemPrompt).where(SystemPrompt.id == prompt_id)
+            result = await session.execute(query)
+            return result.scalar_one_or_none()
+    
+    async def list_system_prompts(self, client_id: Union[str, uuid.UUID]) -> List[SystemPrompt]:
+        """List all system prompts for a client, ordered by version desc"""
+        if isinstance(client_id, str):
+            client_id = uuid.UUID(client_id)
+            
+        async with self.get_session() as session:
+            query = select(SystemPrompt).where(
+                SystemPrompt.client_id == client_id
+            ).order_by(SystemPrompt.version.desc())
+            result = await session.execute(query)
+            return list(result.scalars().all())
+    
+    async def set_active_system_prompt(self, client_id: Union[str, uuid.UUID], prompt_id: int) -> bool:
+        """Set a system prompt as active (deactivating others)"""
+        if isinstance(client_id, str):
+            client_id = uuid.UUID(client_id)
+            
+        async with self.get_session() as session:
+            # First, deactivate all prompts for this client
+            deactivate_query = select(SystemPrompt).where(
+                and_(
+                    SystemPrompt.client_id == client_id,
+                    SystemPrompt.is_active == True
+                )
+            )
+            deactivate_result = await session.execute(deactivate_query)
+            for prompt in deactivate_result.scalars():
+                prompt.is_active = False
+            
+            # Then activate the specified prompt
+            activate_query = select(SystemPrompt).where(
+                and_(
+                    SystemPrompt.id == prompt_id,
+                    SystemPrompt.client_id == client_id
+                )
+            )
+            activate_result = await session.execute(activate_query)
+            prompt_to_activate = activate_result.scalar_one_or_none()
+            
+            if prompt_to_activate:
+                prompt_to_activate.is_active = True
+                await session.commit()
+                return True
+            
+            return False

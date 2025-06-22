@@ -193,3 +193,29 @@ export const admins = {
       body: JSON.stringify({ new_password: newPassword }),
     }),
 }
+
+// System Prompts API
+export const systemPrompts = {
+  list: (clientId) => 
+    apiCall(`/clients/${clientId}/prompts`),
+  
+  generate: (clientId, data) =>
+    apiCall(`/clients/${clientId}/prompts/generate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  save: (clientId, data) =>
+    apiCall(`/clients/${clientId}/prompts`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  get: (promptId) =>
+    apiCall(`/prompts/${promptId}`),
+  
+  setActive: (clientId, promptId) =>
+    apiCall(`/clients/${clientId}/prompts/active/${promptId}`, {
+      method: 'PUT',
+    }),
+}
