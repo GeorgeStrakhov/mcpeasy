@@ -15,7 +15,6 @@ RUN uv sync --frozen --no-cache --group dev
 
 # Copy source code (will be overridden by volume mount)
 COPY src/ src/
-COPY config/ config/
 COPY dev.py ./
 
 # Install custom dependencies from submodules (if any exist)

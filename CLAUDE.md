@@ -417,6 +417,10 @@ Add to your `.env`:
 SESSION_SECRET=your_secure_session_key_here
 SUPERADMIN_PASSWORD=your_admin_password
 DATABASE_URL=postgresql://user:pass@host/db
+
+# Tool execution queue configuration
+TOOL_MAX_WORKERS=20        # Max concurrent tool executions (default: 20)
+TOOL_QUEUE_SIZE=200        # Max queued requests (default: 200)
 ```
 
 ## Production Deployment Ready
@@ -553,18 +557,50 @@ async def execute_tool(name: str, arguments: dict, config: dict = None,
     return result  # Response sent immediately
 ```
 
-### Request Timeout Protection
-- ✅ **30-second s**: All tool executions wrapped with `asyncio.wait_for()`
-- ✅ **Graceful  handling**: Proper error responses for timed-out tools
-- ✅ **Worker protection**: Prevents runaway tools from blocking workers
+### Tool Execution Queue System
+- ✅ **Bounded concurrency**: Limited concurrent tool executions (configurable via `TOOL_MAX_WORKERS`)
+- ✅ **Queue overflow protection**: Request queue with configurable size (`TOOL_QUEUE_SIZE`)
+- ✅ **Fair FIFO scheduling**: First-come, first-served tool execution
+- ✅ **3-minute timeout**: Extended timeout for long-running tools (up from 30 seconds)
+- ✅ **Graceful degradation**: "Server busy" responses when queue is full
 
 ```python
-# Timeout implementation
-try:
-    result = await asyncio.wait_for(tool.execute(arguments, config), timeout=30.0)
-except asyncio.TimeoutError:
-    return ToolResult.error(f"Tool '{name}' execution timed out")
+# Queue-based execution implementation
+class SimpleToolQueue:
+    def __init__(self, max_workers: int = 20, queue_size: int = 200):
+        self.queue = asyncio.Queue(maxsize=queue_size)
+        self.workers = []
+        
+    async def submit(self, tool, arguments: dict, config: dict) -> ToolResult:
+        future = asyncio.Future()
+        
+        # Try to queue with timeout
+        await asyncio.wait_for(
+            self.queue.put((tool, arguments, config, future)),
+            timeout=5.0
+        )
+        
+        # Wait for worker to complete
+        return await future
+    
+    async def _worker(self, worker_id: int):
+        while True:
+            tool, arguments, config, future = await self.queue.get()
+            
+            # Execute with 3-minute timeout
+            result = await asyncio.wait_for(
+                tool.execute(arguments, config),
+                timeout=180.0
+            )
+            
+            future.set_result(result)
 ```
+
+### Request Timeout Protection
+- ✅ **3-minute timeout**: All tool executions wrapped with `asyncio.wait_for()` (180 seconds)
+- ✅ **Graceful timeout handling**: Proper error responses for timed-out tools
+- ✅ **Worker protection**: Prevents runaway tools from blocking workers
+- ✅ **Queue protection**: 5-second timeout for queue submission prevents hanging requests
 
 ### Configuration Caching
 - ✅ **5-minute TTL cache**: In-memory cache for tool/resource configurations
@@ -621,6 +657,7 @@ CMD ["uvicorn", "src.main:app",
 - **Database efficiency**: 80% reduction in configuration lookup latency
 - **Reliability**: Better handling of concurrent requests and timeouts
 - **Resource utilization**: Optimized connection pooling and worker management
+- **Scalability**: Queue-based execution prevents server overload during traffic bursts
 
 ### Monitoring & Metrics
 **Key performance indicators to track**:
@@ -629,6 +666,21 @@ CMD ["uvicorn", "src.main:app",
 - Database connection pool utilization
 - Worker memory usage and restart frequency
 - Tool timeout occurrences
+- **Queue metrics**: Available at `/metrics/queue` endpoint
+
+```bash
+# Check queue health
+curl http://localhost:8000/metrics/queue
+
+# Returns:
+{
+  "queue_depth": 3,           # Current requests waiting
+  "max_workers": 20,          # Maximum concurrent executions
+  "max_queue_size": 200,      # Maximum queue capacity
+  "workers_started": 20,      # Number of active workers
+  "is_started": true          # Queue system status
+}
+```
 
 ## Custom Tools Architecture - Production Ready
 

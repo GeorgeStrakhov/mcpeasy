@@ -5,8 +5,8 @@ Weather tool implementation using Open-Meteo API
 import aiohttp
 from typing import Any, Dict, Optional
 from pydantic import BaseModel
-from ..base import BaseTool, ToolResult
-from ...services.openrouter import get_openrouter_service
+from src.tools.base import BaseTool, ToolResult
+from src.services.openrouter import get_openrouter_service
 
 
 class LocationResolution(BaseModel):

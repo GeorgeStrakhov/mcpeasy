@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from .database import DatabaseService
 from .server.factory import MCPServerFactory
 from .admin import admin_router
+from .tools.registry import tool_registry
 
 load_dotenv()
 
@@ -58,6 +59,9 @@ async def lifespan(app: FastAPI):
     
     # Initialize MCP server factory
     app.state.mcp_factory = MCPServerFactory(app.state.db)
+    
+    # Start the tool execution queue
+    await tool_registry.ensure_queue_started()
     
     yield
     
@@ -122,6 +126,12 @@ async def health_check(request: Request):
         "database": "connected" if db_healthy else "disconnected",
         "timestamp": datetime.now().isoformat()
     }
+
+
+@app.get("/metrics/queue")
+async def queue_metrics():
+    """Get current queue statistics"""
+    return tool_registry.get_queue_stats()
 
 
 # Catch-all route for React Router (must be last)

@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 from pathlib import Path
 import aiohttp
 from postmarker.core import PostmarkClient
-from ..base import BaseTool, ToolResult
+from src.tools.base import BaseTool, ToolResult
 
 
 class SendEmailTool(BaseTool):

@@ -4,8 +4,6 @@ Resource registry for dynamic resource discovery and management
 
 import logging
 import importlib
-import pkgutil
-import yaml
 import os
 from typing import Dict, List, Optional, Type, Any
 from pathlib import Path
@@ -24,7 +22,6 @@ class ResourceRegistry:
         self._resources: Dict[str, BaseResource] = {}
         self._resource_classes: Dict[str, Type[BaseResource]] = {}
         self._db: Optional[DatabaseService] = None
-        self._deployment_config: Optional[Dict[str, Any]] = None
     
     def set_database(self, db: DatabaseService) -> None:
         """Set the database service and propagate to resources that need it"""
@@ -46,34 +43,6 @@ class ResourceRegistry:
         self.discover_resources()
         
         logger.info(f"Resource registry initialized with resources: {list(self._resources.keys())}")
-    
-    def _load_deployment_config(self) -> Dict[str, Any]:
-        """Load deployment configuration from YAML file"""
-        if self._deployment_config is not None:
-            return self._deployment_config
-            
-        # Determine config file path based on environment
-        env = os.getenv("DEPLOYMENT_ENV", "default")
-        config_file = f"config/deployment.{env}.yaml" if env != "default" else "config/deployment.yaml"
-        config_path = Path(config_file)
-        
-        if not config_path.exists():
-            logger.warning(f"Deployment config {config_path} not found, using default")
-            config_path = Path("config/deployment.yaml")
-        
-        if not config_path.exists():
-            logger.warning("No deployment config found, allowing all resources")
-            return {"core_resources": [], "custom_resources": []}
-        
-        try:
-            with open(config_path, 'r') as f:
-                config = yaml.safe_load(f)
-                self._deployment_config = config.get('deployment', {})
-                logger.info(f"Loaded deployment config: {self._deployment_config.get('name', 'unknown')}")
-                return self._deployment_config
-        except Exception as e:
-            logger.error(f"Error loading deployment config: {e}")
-            return {"core_resources": [], "custom_resources": []}
     
     def register_resource(self, resource_class: Type[BaseResource], custom_name: str = None) -> None:
         """Register a resource class with optional custom name for namespacing"""
@@ -101,6 +70,18 @@ class ResourceRegistry:
                 return resource
         return None
     
+    def _get_enabled_resources(self) -> List[str]:
+        """Get list of enabled resources from RESOURCES environment variable"""
+        resources_env = os.getenv("RESOURCES", "")
+        if not resources_env:
+            logger.warning("No RESOURCES environment variable set, no resources will be enabled")
+            return []
+        
+        # Split by comma and strip whitespace
+        resources = [r.strip() for r in resources_env.split(",") if r.strip()]
+        logger.info(f"Enabled resources from environment: {resources}")
+        return resources
+    
     async def list_resources(self, enabled_resources: List[str] = None, resource_configs: Dict[str, Dict[str, Any]] = None) -> List[MCPResource]:
         """List available resources, optionally filtered by enabled_resources"""
         if enabled_resources is None:
@@ -125,100 +106,47 @@ class ResourceRegistry:
         return all_resources
     
     def discover_resources(self, resources_package: str = "src.resources") -> None:
-        """Discover and register resources from core and custom directories"""
+        """Discover and register resources based on RESOURCES environment variable"""
         try:
-            # Load deployment configuration
-            config = self._load_deployment_config()
+            # Get enabled resources from environment
+            enabled_resources = self._get_enabled_resources()
+            if not enabled_resources:
+                logger.warning("No resources enabled in RESOURCES environment variable")
+                return
             
-            # Discover core resources
-            core_resources = self._discover_core_resources(resources_package)
-            
-            # Discover custom resources
-            custom_resources = self._discover_custom_resources("src/custom_resources")
-            
-            # Filter by deployment configuration
-            all_discovered_resources = core_resources + custom_resources
-            allowed_core_resources = config.get('core_resources', [])
-            allowed_custom_resources = config.get('custom_resources', [])
-            
-            # Register filtered resources
+            # Discover and register each enabled resource
             registered_count = 0
-            for resource_class, resource_name in all_discovered_resources:
-                # Check if resource is allowed in deployment
-                if (resource_name in allowed_core_resources or 
-                    any(resource_name == custom_resource for custom_resource in allowed_custom_resources)):
-                    # For custom resources, register with the full org/resource_name
-                    if "/" in resource_name:  # Custom resource
+            for resource_name in enabled_resources:
+                resource_class = self._discover_resource(resources_package, resource_name)
+                if resource_class:
+                    # For namespaced resources, register with full name
+                    if "/" in resource_name:
                         self.register_resource(resource_class, custom_name=resource_name)
-                    else:  # Core resource
+                    else:
                         self.register_resource(resource_class)
                     registered_count += 1
                     logger.debug(f"Registered resource: {resource_name}")
                 else:
-                    logger.debug(f"Skipped resource not in deployment config: {resource_name}")
+                    logger.warning(f"Resource '{resource_name}' not found")
             
-            logger.info(f"Registered {registered_count} resources from {len(all_discovered_resources)} discovered")
+            logger.info(f"Registered {registered_count} resources from {len(enabled_resources)} requested")
                     
         except Exception as e:
             logger.error(f"Error discovering resources: {e}")
 
-    def _discover_core_resources(self, resources_package: str) -> List[tuple]:
-        """Discover resources from the core resources package"""
-        discovered_resources = []
+    def _discover_resource(self, base_package: str, resource_name: str) -> Optional[Type[BaseResource]]:
+        """Discover a resource by name (handles both simple and namespaced names)"""
         try:
-            # Import the resources package
-            package = importlib.import_module(resources_package)
-            package_path = Path(package.__file__).parent
+            if "/" in resource_name:
+                # Namespaced resource (e.g., "acme/product_catalog")
+                namespace, resource = resource_name.split("/", 1)
+                # Construct module path: src.resources.acme.product_catalog.resource
+                resource_module_name = f"{base_package}.{namespace}.{resource}.resource"
+            else:
+                # Simple resource (e.g., "knowledge")
+                # Construct module path: src.resources.knowledge.resource
+                resource_module_name = f"{base_package}.{resource_name}.resource"
             
-            # Walk through all subdirectories in the resources package
-            for subdir in package_path.iterdir():
-                if subdir.is_dir() and not subdir.name.startswith("__"):
-                    resource_class = self._discover_resource_in_directory(resources_package, subdir.name)
-                    if resource_class:
-                        discovered_resources.append((resource_class, subdir.name))
-            
-            logger.debug(f"Discovered {len(discovered_resources)} core resources")
-            return discovered_resources
-                    
-        except Exception as e:
-            logger.error(f"Error discovering core resources: {e}")
-            return []
-
-    def _discover_custom_resources(self, base_path: str) -> List[tuple]:
-        """Discover resources from custom resources directories (submodules)"""
-        discovered_resources = []
-        
-        custom_resources_path = Path(base_path)
-        if not custom_resources_path.exists():
-            logger.debug("Custom resources directory does not exist")
-            return []
-        
-        try:
-            # Scan each organization's submodule
-            for org_dir in custom_resources_path.iterdir():
-                if org_dir.is_dir() and not org_dir.name.startswith('.') and org_dir.name != "__pycache__":
-                    # Look for resources directory within the organization
-                    resources_dir = org_dir / "resources"
-                    if resources_dir.exists():
-                        for resource_dir in resources_dir.iterdir():
-                            if resource_dir.is_dir() and not resource_dir.name.startswith('.'):
-                                resource_name = f"{org_dir.name}/{resource_dir.name}"
-                                resource_class = self._discover_custom_resource_in_directory(base_path, org_dir.name, resource_dir.name)
-                                if resource_class:
-                                    discovered_resources.append((resource_class, resource_name))
-            
-            logger.debug(f"Discovered {len(discovered_resources)} custom resources")
-            return discovered_resources
-            
-        except Exception as e:
-            logger.error(f"Error discovering custom resources: {e}")
-            return []
-    
-    def _discover_resource_in_directory(self, base_package: str, resource_dir: str) -> Optional[Type[BaseResource]]:
-        """Discover a resource in a specific core directory"""
-        try:
-            # Try to import the resource module
-            resource_module_name = f"{base_package}.{resource_dir}.resource"
             resource_module = importlib.import_module(resource_module_name)
             
             # Look for classes that inherit from BaseResource
@@ -229,38 +157,15 @@ class ResourceRegistry:
                     any(base.__name__ == 'BaseResource' for base in attr.__mro__) and
                     attr.__name__ != 'BaseResource'):
                     return attr
-            return None
-                    
-        except ImportError:
-            logger.debug(f"Could not import resource from {resource_dir}")
-            return None
-        except Exception as e:
-            logger.error(f"Error discovering resource in {resource_dir}: {e}")
-            return None
-
-    def _discover_custom_resource_in_directory(self, base_path: str, org_name: str, resource_name: str) -> Optional[Type[BaseResource]]:
-        """Discover a custom resource in a specific organization/resource directory"""
-        try:
-            # Construct module path for custom resource
-            # e.g., src.custom_resources.acme.resources.product_catalog.resource
-            resource_module_name = f"{base_path.replace('/', '.')}.{org_name}.resources.{resource_name}.resource"
-            resource_module = importlib.import_module(resource_module_name)
             
-            # Look for classes that inherit from BaseResource
-            for attr_name in dir(resource_module):
-                attr = getattr(resource_module, attr_name)
-                if (isinstance(attr, type) and 
-                    hasattr(attr, '__mro__') and
-                    any(base.__name__ == 'BaseResource' for base in attr.__mro__) and
-                    attr.__name__ != 'BaseResource'):
-                    return attr
+            logger.warning(f"No BaseResource subclass found in {resource_module_name}")
             return None
                     
         except ImportError as e:
-            logger.debug(f"Could not import custom resource {org_name}/{resource_name}: {e}")
+            logger.debug(f"Could not import resource {resource_name}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error discovering custom resource {org_name}/{resource_name}: {e}")
+            logger.error(f"Error discovering resource {resource_name}: {e}")
             return None
     
     async def read_resource(self, uri: str, enabled_resources: List[str] = None, resource_configs: Dict[str, Dict[str, Any]] = None) -> Optional[ResourceContent]:

@@ -26,7 +26,6 @@ RUN uv sync --frozen --no-cache --no-dev
 
 # Copy backend source code
 COPY src/ src/
-COPY config/ config/
 
 # Install custom dependencies from submodules (if any exist)
 # This step runs after copying source to discover any custom requirements.txt files

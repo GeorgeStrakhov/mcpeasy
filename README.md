@@ -45,31 +45,11 @@ A production-grade multi-tenant MCP server that provides different tools and con
 3. **Access the services**:
    ```
    http://localhost:8000       # Main API endpoint
-   http://localhost:3000       # Admin interface (on prod: https://yourdomain.com/admin)
+   http://localhost:3000       # Admin interface (on prod: https://yourdomain.com/admin). Log in with username 'superadmin', pass: your 'SUPERADMIN_PASSWORD' from .env
    http://localhost:8080       # Database inspector (Adminer)
-   # Login to admin with your SUPERADMIN_PASSWORD
    ```
 
 That's it! Docker Compose handles all dependencies, database setup, and migrations automatically.
-
-### Alternative: Local Development Without Docker
-
-If you prefer to run without Docker:
-
-1. **Install dependencies**:
-   ```bash
-   uv sync
-   ```
-
-2. **Run development server**:
-   ```bash
-   python dev.py
-   ```
-
-3. **Access admin interface**:
-   ```
-   http://localhost:3000
-   ```
 
 ## API Endpoints
 
@@ -86,7 +66,7 @@ If you prefer to run without Docker:
 
 ### Creating Clients
 
-1. Visit `/admin` and login with superadmin password
+1. Visit `/` (in development localhost:3000) and login with superadmin password
 2. Create client with name and description
 3. Generate API keys for the client
 4. Configure tools and resources with their settings per client
@@ -108,11 +88,10 @@ Each client must explicitly configure tools to access them:
 
 ### Available Tools
 
-**Core Tools:**
+**Example Tools:**
 - `echo` - Simple echo tool for testing (no configuration needed)
 - `get_weather` - Weather information (no configuration needed)  
 - `send_email` - Send emails (requires: from_email, optional: smtp_server)
-- `youtube_lookup` - YouTube video information lookup (no configuration needed)
 
 **Custom Tools:**
 - Custom tools can be added via git submodules in organization-specific repositories
@@ -152,6 +131,10 @@ DATABASE_URL=postgresql://user:pass@host:port/db
 PORT=8000
 SESSION_SECRET=your_secure_session_key_here
 SUPERADMIN_PASSWORD=your_secure_password
+
+# Tool execution queue configuration
+TOOL_MAX_WORKERS=20        # Max concurrent tool executions (default: 20)
+TOOL_QUEUE_SIZE=200        # Max queued requests (default: 200)
 ```
 
 see .env.example for more
@@ -196,6 +179,33 @@ return ToolResult.file("s3://bucket/report.pdf", mime_type="application/pdf")
 # Error handling
 return ToolResult.error("Invalid operation: division by zero")
 ```
+
+### Running Synchronous Code in Tools
+
+If your custom tool needs to run synchronous (blocking) code, use `asyncio.to_thread()` to avoid blocking the async event loop:
+
+```python
+import asyncio
+from src.tools.base import BaseTool, ToolResult
+
+class MyCustomTool(BaseTool):
+    @property
+    def name(self) -> str:
+        return "my_custom_tool"
+    
+    async def execute(self, arguments: dict, config: dict = None) -> ToolResult:
+        # For CPU-bound or blocking I/O operations
+        result = await asyncio.to_thread(self._blocking_operation, arguments)
+        return ToolResult.json(result)
+    
+    def _blocking_operation(self, arguments: dict):
+        # This runs in a thread pool, safe to block
+        import time
+        time.sleep(5)  # Example: blocking operation
+        return {"processed": True, "data": arguments}
+```
+
+**Important**: Never use blocking operations directly in the `execute()` method as it will block the entire event loop and affect other tool executions.
 
 ### Templates and Documentation
 
@@ -380,11 +390,44 @@ Models are organized in separate files by domain:
 
 The system is optimized for production workloads with several performance enhancements:
 
+- **Queue-based execution**: Bounded concurrency with configurable worker pools prevents server overload
+- **Fair scheduling**: FIFO queue ensures all clients get served during traffic bursts
 - **Background processing**: Tool call logging moved to background tasks for faster response times
-- **Request timeouts**: 30-second timeouts prevent runaway tool executions
+- **Extended timeouts**: 3-minute timeouts support long-running tools (configurable)
 - **Configuration caching**: 5-minute TTL cache reduces database queries for configuration lookups
 - **Connection pooling**: Optimized PostgreSQL connection management with pre-ping validation
 - **Multi-worker setup**: 2 workers optimized for Fly.io deployment with automatic recycling
+- **Queue monitoring**: Real-time queue metrics available at `/metrics/queue` endpoint
+
+### Queue Configuration
+
+Control tool execution concurrency and queue behavior:
+
+```bash
+# Environment variables for .env
+TOOL_MAX_WORKERS=20    # Concurrent tool executions (default: 20)
+TOOL_QUEUE_SIZE=200    # Maximum queued requests (default: 200)
+
+# Recommended settings by server size:
+# Small servers: TOOL_MAX_WORKERS=5, TOOL_QUEUE_SIZE=50
+# Production: TOOL_MAX_WORKERS=50, TOOL_QUEUE_SIZE=500
+```
+
+### Queue Monitoring
+
+```bash
+# Check queue health and capacity
+curl http://localhost:8000/metrics/queue
+
+# Response includes:
+{
+  "queue_depth": 3,          # Current requests waiting
+  "max_workers": 20,         # Maximum concurrent executions  
+  "max_queue_size": 200,     # Maximum queue capacity
+  "workers_started": 20,     # Number of active workers
+  "is_started": true         # Queue system status
+}
+```
 
 ## Deployment
 

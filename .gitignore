@@ -21,15 +21,21 @@ frontend/.vite/
 
 cookies.txt
 
-# Custom tools and resources (git submodules contents)
-src/custom_tools/*/
-src/custom_resources/*/
+# Tools - ignore everything except core directory and base files
+src/tools/*
+!src/tools/core/
+!src/tools/__init__.py
+!src/tools/base.py
+!src/tools/types.py
+!src/tools/registry.py
+!src/tools/execution_queue.py
 
-# Keep structure files
-!src/custom_tools/.gitkeep
-!src/custom_tools/README.md
-!src/custom_resources/.gitkeep
-!src/custom_resources/README.md
+# Resources - ignore all organization directories  
+src/resources/*
+!src/resources/__init__.py
+!src/resources/base.py
+!src/resources/types.py
+!src/resources/registry.py
 
 # Custom migrations
 src/migrations/versions/*_custom_*.py

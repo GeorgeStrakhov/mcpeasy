@@ -3,8 +3,8 @@ Web scraping tool using Firecrawl service
 """
 
 from typing import Any, Dict, Optional
-from ..base import BaseTool, ToolResult
-from ...services import get_firecrawl_service
+from src.tools.base import BaseTool, ToolResult
+from src.services import get_firecrawl_service
 
 
 class ScrapeTool(BaseTool):

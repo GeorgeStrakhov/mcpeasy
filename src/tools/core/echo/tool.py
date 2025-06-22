@@ -3,7 +3,7 @@ Echo tool implementation - returns the input message
 """
 
 from typing import Any, Dict, Optional
-from ..base import BaseTool, ToolResult
+from src.tools.base import BaseTool, ToolResult
 
 
 class EchoTool(BaseTool):

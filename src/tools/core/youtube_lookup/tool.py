@@ -5,10 +5,10 @@ YouTube lookup tool implementation - vector similarity search through YouTube vi
 import json
 from typing import Any, Dict, Optional
 from sqlalchemy import text
-from ..base import BaseTool, ToolResult
-from ...services.embeddings import get_embeddings_service
-from ...services.openrouter import get_openrouter_service
-from ...models.youtube import YouTubeChunk
+from src.tools.base import BaseTool, ToolResult
+from src.services.embeddings import get_embeddings_service
+from src.services.openrouter import get_openrouter_service
+from src.models.youtube import YouTubeChunk
 
 
 class YouTubeLookupTool(BaseTool):
