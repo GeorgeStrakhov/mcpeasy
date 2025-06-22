@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage'
 import ClientDetailPage from './pages/ClientDetailPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import AdminManagementPage from './pages/AdminManagementPage'
+import SystemMonitoringPage from './pages/SystemMonitoringPage'
 import NotFoundPage from './pages/NotFoundPage'
 import Layout from './components/Layout'
 
@@ -37,6 +38,7 @@ function App() {
           <Route path="/clients/:clientId" element={<ClientDetailPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/admins" element={<AdminManagementPage />} />
+          <Route path="/monitoring" element={<SystemMonitoringPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Layout>

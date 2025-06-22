@@ -19,6 +19,12 @@ class SimpleToolQueue:
         self.workers = []
         self._started = False
         
+        # Activity tracking
+        self.total_tasks_processed = 0
+        self.active_workers = 0
+        self.peak_queue_depth = 0
+        self.peak_active_workers = 0
+        
     async def start(self):
         """Start worker pool"""
         if self._started:
@@ -39,6 +45,10 @@ class SimpleToolQueue:
             try:
                 task = await self.queue.get()
                 
+                # Track active worker count
+                self.active_workers += 1
+                self.peak_active_workers = max(self.peak_active_workers, self.active_workers)
+                
                 # Unpack task
                 tool, arguments, config, future = task
                 
@@ -54,6 +64,9 @@ class SimpleToolQueue:
                 future.set_result(result)
                 logger.debug(f"Worker {worker_id} completed tool: {tool.name}")
                 
+                # Track completion
+                self.total_tasks_processed += 1
+                
             except asyncio.TimeoutError:
                 logger.warning(f"Worker {worker_id} tool execution timed out after 3 minutes")
                 future.set_exception(
@@ -63,6 +76,8 @@ class SimpleToolQueue:
                 logger.error(f"Worker {worker_id} tool execution failed: {e}")
                 future.set_exception(e)
             finally:
+                # Track worker becoming available
+                self.active_workers -= 1
                 self.queue.task_done()
     
     async def submit(self, tool, arguments: Dict[str, Any], config: Dict[str, Any]) -> Any:
@@ -75,7 +90,12 @@ class SimpleToolQueue:
                 self.queue.put((tool, arguments, config, future)),
                 timeout=5.0
             )
-            logger.debug(f"Queued tool: {tool.name}, queue depth: {self.queue.qsize()}")
+            
+            # Track peak queue depth
+            current_depth = self.queue.qsize()
+            self.peak_queue_depth = max(self.peak_queue_depth, current_depth)
+            
+            logger.debug(f"Queued tool: {tool.name}, queue depth: {current_depth}")
         except asyncio.TimeoutError:
             raise Exception("Server busy - too many requests in queue")
             
@@ -89,5 +109,9 @@ class SimpleToolQueue:
             "max_workers": self.max_workers,
             "max_queue_size": self.queue.maxsize,
             "workers_started": len(self.workers),
-            "is_started": self._started
+            "is_started": self._started,
+            "active_workers": self.active_workers,
+            "total_tasks_processed": self.total_tasks_processed,
+            "peak_queue_depth": self.peak_queue_depth,
+            "peak_active_workers": self.peak_active_workers
         }

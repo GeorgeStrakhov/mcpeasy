@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { useAuth } from '../hooks/useAuth'
-import { LogOut, BarChart3, Users, Settings, Menu } from 'lucide-react'
+import { LogOut, BarChart3, Users, Settings, Menu, Activity } from 'lucide-react'
 
 export default function Header() {
   const location = useLocation()
@@ -26,6 +26,7 @@ export default function Header() {
   const navItems = [
     { path: '/', icon: Users, label: 'Dashboard' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics' },
+    { path: '/monitoring', icon: Activity, label: 'Monitoring' },
     { path: '/admins', icon: Settings, label: 'Admin Management' },
   ]
 

@@ -1,9 +1,5 @@
 - CLEANUP: delete old knowledge model and pre-population logic
 
-- TOOL: refactor send_email tool so that postmarker is a service
-
-- ADMIN: basic queue health monitoring in the frontend
-
 - ADMIN: export / import tool configs in the admin. export / import entire DB in the admin.
 
 - TOOL: search (behind the scenes can use exa, serpapi, firecrawl)

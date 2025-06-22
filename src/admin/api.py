@@ -672,6 +672,73 @@ async def get_client_tool_call_stats(
     )
 
 
+# System Monitoring Routes
+
+class QueueMetricsResponse(BaseModel):
+    """Queue metrics response model"""
+    queue_depth: int
+    max_workers: int
+    max_queue_size: int
+    workers_started: int
+    is_started: bool
+    utilization_percent: float
+    active_workers: int
+    total_tasks_processed: int
+    peak_queue_depth: int
+    peak_active_workers: int
+    
+class SystemHealthResponse(BaseModel):
+    """System health response model"""
+    database_status: str
+    queue_metrics: QueueMetricsResponse
+    timestamp: datetime
+
+
+@router.get("/metrics/queue", response_model=QueueMetricsResponse)
+async def get_queue_metrics(request: Request, _: None = Depends(require_admin_auth)):
+    """Get current queue statistics"""
+    from src.tools.registry import tool_registry
+    
+    stats = tool_registry.get_queue_stats()
+    
+    # Calculate utilization percentage
+    utilization_percent = 0.0
+    if stats["max_queue_size"] > 0:
+        utilization_percent = (stats["queue_depth"] / stats["max_queue_size"]) * 100
+    
+    return QueueMetricsResponse(
+        queue_depth=stats["queue_depth"],
+        max_workers=stats["max_workers"], 
+        max_queue_size=stats["max_queue_size"],
+        workers_started=stats["workers_started"],
+        is_started=stats["is_started"],
+        utilization_percent=round(utilization_percent, 1),
+        active_workers=stats["active_workers"],
+        total_tasks_processed=stats["total_tasks_processed"],
+        peak_queue_depth=stats["peak_queue_depth"],
+        peak_active_workers=stats["peak_active_workers"]
+    )
+
+
+@router.get("/health", response_model=SystemHealthResponse)
+async def get_system_health(request: Request, _: None = Depends(require_admin_auth)):
+    """Get overall system health status"""
+    db: DatabaseService = request.app.state.db
+    
+    # Check database health
+    db_healthy = await db.health_check()
+    db_status = "connected" if db_healthy else "disconnected"
+    
+    # Get queue metrics
+    queue_metrics = await get_queue_metrics(request, _)
+    
+    return SystemHealthResponse(
+        database_status=db_status,
+        queue_metrics=queue_metrics,
+        timestamp=datetime.now()
+    )
+
+
 # Admin Management Routes
 
 class AdminSummary(BaseModel):

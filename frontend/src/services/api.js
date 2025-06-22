@@ -219,3 +219,10 @@ export const systemPrompts = {
       method: 'PUT',
     }),
 }
+
+// System Monitoring API
+export const monitoring = {
+  queueMetrics: () => apiCall('/metrics/queue'),
+  
+  systemHealth: () => apiCall('/health'),
+}
