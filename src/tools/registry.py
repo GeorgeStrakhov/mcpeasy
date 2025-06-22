@@ -68,10 +68,49 @@ class ToolRegistry:
             logger.warning("No TOOLS environment variable set, no tools will be enabled")
             return []
         
+        # Check for special __all__ value to enable all discovered tools
+        if tools_env.strip() == "__all__":
+            logger.info("TOOLS=__all__ detected, discovering all available tools")
+            return self._discover_all_available_tools()
+        
         # Split by comma and strip whitespace
         tools = [t.strip() for t in tools_env.split(",") if t.strip()]
         logger.info(f"Enabled tools from environment: {tools}")
         return tools
+
+    def _discover_all_available_tools(self, tools_package: str = "src.tools") -> List[str]:
+        """Discover all available tools by scanning the filesystem"""
+        available_tools = []
+        
+        # Get the tools directory path
+        tools_path = Path(tools_package.replace(".", "/"))
+        if not tools_path.exists():
+            logger.warning(f"Tools directory {tools_path} does not exist")
+            return []
+        
+        # Scan for namespace directories (core, m38, etc.)
+        for namespace_dir in tools_path.iterdir():
+            if not namespace_dir.is_dir() or namespace_dir.name.startswith("_"):
+                continue
+                
+            namespace = namespace_dir.name
+            
+            # Scan for tool directories within namespace
+            for tool_dir in namespace_dir.iterdir():
+                if not tool_dir.is_dir() or tool_dir.name.startswith("_"):
+                    continue
+                    
+                tool_name = tool_dir.name
+                
+                # Check if tool.py exists
+                tool_file = tool_dir / "tool.py"
+                if tool_file.exists():
+                    full_tool_name = f"{namespace}/{tool_name}"
+                    available_tools.append(full_tool_name)
+                    logger.debug(f"Found available tool: {full_tool_name}")
+        
+        logger.info(f"Discovered {len(available_tools)} available tools: {available_tools}")
+        return available_tools
 
     def discover_tools(self, tools_package: str = "src.tools") -> None:
         """Discover and register tools based on TOOLS environment variable"""

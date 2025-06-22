@@ -23,7 +23,7 @@ A production-grade multi-tenant MCP server that provides different tools and con
 - **Dynamic resource sets**: Different clients get different resource combinations
 - **Resource auto-discovery**: Modular resource system with automatic registration
 - **Enhanced tool responses**: Multiple content types (text, JSON, markdown, file) for optimal LLM integration
-- **Deployment filtering**: YAML-based tool/resource whitelisting for environment-specific deployments
+- **Environment-based discovery**: Simple environment variable configuration for tool/resource enablement
 - **Shared infrastructure**: Database, logging, and configuration shared across servers
 - **Admin interface**: Web-based client and API key management with CORE/CUSTOM tool source badges
 - **Production ready**: Built for Fly deployment with Neon database
@@ -88,16 +88,27 @@ Each client must explicitly configure tools to access them:
 
 ### Available Tools
 
-**Example Tools:**
-- `echo` - Simple echo tool for testing (no configuration needed)
-- `get_weather` - Weather information (no configuration needed)  
-- `send_email` - Send emails (requires: from_email, optional: smtp_server)
+**Namespaced Tool System:**
+All tools are organized in namespaces for better organization and conflict avoidance:
 
-**Custom Tools:**
-- Custom tools can be added via git submodules in organization-specific repositories
-- Each deployment can whitelist different custom tools via YAML configuration
+**Core Tools (namespace: `core/`):**
+- `core/echo` - Simple echo tool for testing (no configuration needed)
+- `core/weather` - Weather information (no configuration needed)  
+- `core/send_email` - Send emails (requires: from_email, optional: smtp_server)
+- `core/datetime` - Date and time utilities
+- `core/scrape` - Web scraping functionality
+- `core/youtube_lookup` - YouTube video information
+
+**Custom Tools (namespace: `{org}/`):**
+- `myorg/send_invoice` - Custom tool would live here
+- Custom tools can be added in organization-specific namespaces
+- Each deployment can control which tools are available via environment configuration
 - Custom tools show with purple "CUSTOM" badges in admin UI vs blue "CORE" badges
-- (Tool ecosystem grows with auto-discovery and organization contributions)
+
+**Tool Discovery:**
+- Use `TOOLS=__all__` to automatically discover and enable all available tools
+- Or specify exact tools: `TOOLS='core/echo,core/weather,myorg/send_invoice'`
+- Directory structure: `src/tools/{namespace}/{tool_name}/tool.py`
 
 ### Tool Call Tracking
 
@@ -132,6 +143,10 @@ PORT=8000
 SESSION_SECRET=your_secure_session_key_here
 SUPERADMIN_PASSWORD=your_secure_password
 
+# Tool and resource discovery
+TOOLS=__all__              # Enable all discovered tools, or list specific ones like 'core/echo,m38/calculator'
+RESOURCES=__all__          # Enable all discovered resources, or list specific ones like 'knowledge'
+
 # Tool execution queue configuration
 TOOL_MAX_WORKERS=20        # Max concurrent tool executions (default: 20)
 TOOL_QUEUE_SIZE=200        # Max queued requests (default: 200)
@@ -149,15 +164,33 @@ The system uses three main entities:
 
 ## Custom Tools Development
 
-MCPeasy supports adding organization-specific tools while maintaining clean separation from core functionality:
+MCPeasy supports adding organization-specific tools using a simplified namespaced directory structure:
 
 ### Quick Custom Tool Setup
 
-1. **Fork mcpeasy repository**
-2. **Create custom tool repository** with your organization's tools
-3. **Add as git submodule**: `git submodule add https://github.com/yourorg/mcp-tools.git src/custom_tools/yourorg`
-4. **Configure deployment**: Add tools to `config/deployment.yaml`
+1. **Create namespace directory**: `mkdir -p src/tools/yourorg`
+2. **Add your tool**: Create `src/tools/yourorg/yourtool/tool.py` with your tool implementation
+3. **Auto-discovery**: Tool automatically discovered as `yourorg/yourtool`
+4. **Configure environment**: 
+   - Use `TOOLS=__all__` to enable all tools automatically
+   - Or specify: `TOOLS='core/echo,yourorg/yourtool'`
 5. **Enable for clients**: Use admin UI to configure tools per client
+
+### Directory Structure
+
+```
+src/tools/
+├── core/                    # Core mcpeasy tools
+│   ├── echo/
+│   ├── weather/
+│   └── send_email/
+├── m38/                     # Example custom namespace
+│   └── calculator/
+└── yourorg/                 # Your organization's tools
+    ├── invoice_generator/
+    ├── crm_integration/
+    └── custom_reports/
+```
 
 ### Enhanced Tool Response Types
 
@@ -211,8 +244,8 @@ class MyCustomTool(BaseTool):
 
 - **Templates**: Complete tool/resource templates in `templates/` directory
 - **Best practices**: Examples show proper dependency management and configuration
-- **Git submodule workflow**: Clean separation between core and custom code
-- **YAML deployment filtering**: Environment-specific tool availability
+- **Namespace organization**: Clean separation between core and custom tools
+- **Environment variable discovery**: Simple TOOLS and RESOURCES configuration
 
 ## Development
 

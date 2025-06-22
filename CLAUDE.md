@@ -175,7 +175,7 @@ src/models/
 
 ### Tool and Resource Architecture
 
-**Consistent Registry Pattern**: Both tools and resources use the same architecture for better maintainability:
+**Consistent Registry Pattern with Namespacing**: Both tools and resources use the same architecture for better maintainability:
 
 ```
 src/tools/
@@ -183,10 +183,18 @@ src/tools/
 ├── base.py              # BaseTool abstract class
 ├── types.py             # ToolSchema and ToolResult types
 ├── registry.py          # ToolRegistry for discovery and execution
-└── {tool_name}/         # Individual tool implementations
-    ├── __init__.py
-    ├── tool.py
-    └── README.md        # Tool-specific documentation
+├── execution_queue.py   # Tool execution queue system
+├── core/                # Core mcpeasy tools namespace
+│   ├── echo/
+│   ├── weather/
+│   ├── send_email/
+│   ├── datetime/
+│   ├── scrape/
+│   └── youtube_lookup/
+└── {org_namespace}/     # Organization-specific tool namespaces
+    ├── calculator/
+    ├── invoice_generator/
+    └── custom_reports/
 
 src/resources/
 ├── __init__.py          # Resource exports
@@ -202,8 +210,67 @@ src/resources/
 - **Registry-only pattern**: Single registry class handles discovery, registration, and execution
 - **Type separation**: Types defined in dedicated `types.py` files
 - **Database injection**: Registry provides `set_database()` and `initialize()` methods
-- **Auto-discovery**: Both registries scan their packages for implementations
+- **Namespaced auto-discovery**: Both registries scan namespaced directories for implementations
 - **Per-client configuration**: Registries filter based on client's enabled items
+- **Environment-based discovery**: Support for `__all__` to enable all discovered tools/resources
+- **Namespace isolation**: Clear separation between core and organization-specific tools
+
+### Namespaced Tool Discovery System
+
+**Architecture**: Simplified directory-based tool organization with automatic discovery
+
+**Environment Configuration**:
+```bash
+# Enable all discovered tools automatically
+TOOLS=__all__
+
+# Or specify exact namespaced tools
+TOOLS='core/echo,core/weather,m38/calculator,yourorg/invoice'
+```
+
+**Discovery Algorithm**:
+```python
+def _discover_all_available_tools(self, tools_package: str = "src.tools") -> List[str]:
+    """Discover all available tools by scanning the filesystem"""
+    available_tools = []
+    
+    # Get the tools directory path
+    tools_path = Path(tools_package.replace(".", "/"))
+    
+    # Scan for namespace directories (core, m38, yourorg, etc.)
+    for namespace_dir in tools_path.iterdir():
+        if not namespace_dir.is_dir() or namespace_dir.name.startswith("_"):
+            continue
+            
+        namespace = namespace_dir.name
+        
+        # Scan for tool directories within namespace
+        for tool_dir in namespace_dir.iterdir():
+            if not tool_dir.is_dir() or tool_dir.name.startswith("_"):
+                continue
+                
+            tool_name = tool_dir.name
+            
+            # Check if tool.py exists
+            tool_file = tool_dir / "tool.py"
+            if tool_file.exists():
+                full_tool_name = f"{namespace}/{tool_name}"
+                available_tools.append(full_tool_name)
+    
+    return available_tools
+```
+
+**Benefits**:
+- **Zero configuration**: `TOOLS=__all__` discovers everything automatically
+- **Namespace clarity**: Clear separation of core vs custom tools (`core/echo` vs `m38/calculator`)
+- **Conflict avoidance**: Multiple organizations can have tools with the same name
+- **Selective enablement**: Still supports explicit tool lists when needed
+- **Directory convention**: Standard `{namespace}/{tool_name}/tool.py` structure
+
+**Tool Naming Convention**:
+- Core tools: `core/echo`, `core/weather`, `core/send_email`
+- Organization tools: `{org}/{tool}` (e.g., `m38/calculator`, `acme/invoice`)
+- Admin UI recognition: Tools with `/` get "CUSTOM" badges, others get "CORE" badges
 
 ### Migration System - Simplified & Automated
 
@@ -691,7 +758,7 @@ curl http://localhost:8000/metrics/queue
 **Architecture Benefits**:
 - **Clean Separation**: Core tools in main repo, custom tools in organization-specific git repos
 - **No Merge Conflicts**: Custom directories are gitignored, avoiding upstream conflicts
-- **Two-Level Filtering**: Deployment YAML whitelist → Per-client database configuration
+- **Two-Level Filtering**: Environment variable discovery → Per-client database configuration
 - **Version Control**: Each organization controls their custom tool versions independently
 - **Easy Updates**: Pull upstream mcpeasy changes without affecting custom code
 
@@ -700,56 +767,38 @@ curl http://localhost:8000/metrics/queue
 ```
 mcpeasy/
 ├── src/
-│   ├── tools/                    # Core tools (committed to main repo)
-│   ├── custom_tools/             # Custom tools root (gitignored contents)
-│   │   ├── .gitkeep             # Keeps directory structure
-│   │   ├── README.md            # Instructions for adding custom tools
-│   │   └── {org-name}/          # Git submodule per organization
-│   │       ├── tools/           # Organization's custom tools
-│   │       └── requirements.txt # Additional dependencies (optional)
+│   ├── tools/                    # All tools with namespace organization
+│   │   ├── core/                # Core mcpeasy tools
+│   │   │   ├── echo/
+│   │   │   ├── weather/
+│   │   │   └── send_email/
+│   │   ├── m38/                 # Example custom namespace
+│   │   │   └── calculator/
+│   │   └── {org-name}/          # Organization-specific namespaces
+│   │       ├── invoice_generator/
+│   │       └── custom_reports/
 │   ├── resources/               # Core resources
-│   ├── custom_resources/        # Custom resources (same pattern)
-│   └── migrations/versions/     # All migrations (core + custom)
-├── config/
-│   ├── deployment.yaml          # Production tool whitelist
-│   ├── deployment.dev.yaml      # Development tool whitelist
-│   └── deployment.staging.yaml  # Staging tool whitelist
+│   └── migrations/versions/     # All migrations
 └── templates/                   # Templates for custom development
     ├── custom_tool/
     └── custom_resource/
 ```
 
-### Deployment Configuration (YAML)
+### Environment Configuration
 
-**Environment-specific tool filtering**:
+**Simple environment variable-based tool filtering**:
 
-```yaml
-# config/deployment.yaml
-deployment:
-  name: "production"
-  description: "Production deployment configuration"
-  
-  # Core tools to include
-  core_tools:
-    - echo
-    - weather
-    - email
-    - youtube_lookup
-  
-  # Custom tool packages to include (from submodules)
-  custom_tools:
-    - acme/invoice_generator      # From custom_tools/acme/tools/invoice_generator
-    - acme/crm_integration
-    - widgets-inc/reporting
-  
-  # Core resources to include  
-  core_resources:
-    - knowledge
-  
-  # Custom resource packages to include
-  custom_resources:
-    - acme/product_catalog
-    - widgets-inc/customer_data
+```bash
+# Enable all discovered tools automatically
+TOOLS=__all__
+RESOURCES=__all__
+
+# Or specify exact namespaced tools for production environments
+TOOLS='core/echo,core/weather,core/send_email,m38/calculator'
+RESOURCES='knowledge'
+
+# Custom organization tools are namespaced automatically
+# e.g., acme/invoice_generator, widgets-inc/reporting
 ```
 
 ### Enhanced Tool Response System
@@ -795,25 +844,22 @@ class ToolResult:
 ```python
 class ToolRegistry:
     def discover_tools(self):
-        # 1. Load deployment configuration from YAML
-        config = self._load_deployment_config()
+        # 1. Get enabled tools from environment variable
+        enabled_tools = self._get_enabled_tools()  # Handles __all__ or explicit list
         
-        # 2. Discover from core directory  
-        core_tools = self._discover_in_package("src.tools")
+        # 2. Discover and register each enabled tool
+        for tool_name in enabled_tools:
+            if "/" in tool_name:
+                # Namespaced tool (e.g., "core/echo" or "m38/calculator")
+                namespace, tool = tool_name.split("/", 1)
+                tool_class = self._discover_tool_in_namespace("src.tools", namespace, tool)
+                if tool_class:
+                    self.register_tool(tool_class, custom_name=tool_name)
         
-        # 3. Discover from custom directories
-        custom_tools = self._discover_custom_tools("src/custom_tools")
-        
-        # 4. Filter by deployment whitelist
-        allowed_tools = config.get('core_tools', []) + config.get('custom_tools', [])
-        filtered_tools = [t for t in (core_tools + custom_tools) if t.name in allowed_tools]
-        
-        # 5. Register filtered tools with proper namespacing
-        for tool in filtered_tools:
-            # Custom tools get org/tool_name format
-            if "/" in tool.name:  # Custom tool
-                tool.schema.name = tool.name  # Override for MCP protocol
-            self.register_tool(tool)
+        # 3. Auto-discovery handles filesystem scanning when TOOLS=__all__
+        def _discover_all_available_tools(self):
+            # Scans src/tools/{namespace}/{tool_name}/tool.py
+            # Returns list like ['core/echo', 'm38/calculator']
 ```
 
 ### Admin UI Enhancements
@@ -858,13 +904,12 @@ CREATE TABLE tool_calls (
 
 **Complete Custom Tool Development Cycle**:
 
-1. **Fork mcpeasy** → Clone organization's fork
-2. **Create custom tool repo** → Separate git repository for organization's tools  
-3. **Add as submodule** → `git submodule add https://github.com/org/tools.git src/custom_tools/org`
-4. **Configure deployment** → Add tool names to `config/deployment.yaml`
-5. **Deploy application** → Custom tools automatically discovered and registered
-6. **Configure per client** → Use admin UI to enable/configure tools per client
-7. **Update independently** → Pull upstream mcpeasy changes without conflicts
+1. **Create namespace directory** → `mkdir -p src/tools/yourorg`
+2. **Add custom tools** → Create `src/tools/yourorg/yourtool/tool.py` with tool implementation
+3. **Configure environment** → Set `TOOLS=__all__` or `TOOLS='core/echo,yourorg/yourtool'`
+4. **Deploy application** → Custom tools automatically discovered and registered
+5. **Configure per client** → Use admin UI to enable/configure tools per client
+6. **Version control** → Commit tools to your mcpeasy fork or separate repository
 
 ### Production Features
 

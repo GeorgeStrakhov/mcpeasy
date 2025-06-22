@@ -323,11 +323,11 @@ export default function ClientDetailPage() {
                             <div className="flex items-center gap-2">
                               <span>{tool.name}</span>
                               <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                                tool.name.includes('/') 
-                                  ? 'bg-purple-100 text-purple-700' 
-                                  : 'bg-blue-100 text-blue-700'
+                                tool.name.includes('core/') 
+                                  ? 'bg-purple-100 text-blue-700' 
+                                  : 'bg-blue-100 text-purple-700'
                               }`}>
-                                {tool.name.includes('/') ? 'CUSTOM' : 'CORE'}
+                                {tool.name.includes('core/') ? 'CORE' : 'CUSTOM'}
                               </span>
                               {tool.requires_config && (
                                 <span className="text-xs text-blue-600">Config required</span>
@@ -370,11 +370,11 @@ export default function ClientDetailPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-medium text-sm sm:text-base">{tool.name}</h3>
                         <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                          tool.name.includes('/') 
-                            ? 'bg-purple-100 text-purple-700' 
-                            : 'bg-blue-100 text-blue-700'
+                          tool.name.includes('core/') 
+                            ? 'bg-blue-100 text-purple-700' 
+                            : 'bg-purple-100 text-blue-700'
                         }`}>
-                          {tool.name.includes('/') ? 'CUSTOM' : 'CORE'}
+                          {tool.name.includes('core/') ? 'CORE' : 'CUSTOM'}
                         </span>
                       </div>
                       {tool.description && (
@@ -385,9 +385,6 @@ export default function ClientDetailPage() {
                       )}
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-2 sm:space-x-2">
-                      <div className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                        Enabled
-                      </div>
                       <div className="flex gap-2">
                         {tool.requires_config && (
                           <Button
