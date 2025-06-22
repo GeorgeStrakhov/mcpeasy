@@ -82,14 +82,14 @@ export default function ToolCallsTable({ clientId = null, title = "Tool Call Ana
     return new Date(dateString).toLocaleString()
   }
 
-  const truncateJson = (data, maxLength = 100) => {
+  const truncateJson = (data, maxLength = 30) => {
     if (!data) return 'null'
     const str = JSON.stringify(data)
     if (str.length <= maxLength) return str
     return str.substring(0, maxLength) + '...'
   }
 
-  const extractAndTruncateText = (data, maxLength = 40) => {
+  const extractAndTruncateText = (data, maxLength = 25) => {
     if (!data) return 'null'
     
     // If it's an array (like text content), extract the text
@@ -271,8 +271,8 @@ export default function ToolCallsTable({ clientId = null, title = "Tool Call Ana
                         )}
                       </Button>
                     </th>
-                    <th className="text-left p-2 hidden lg:table-cell">Input</th>
-                    <th className="text-left p-2 hidden lg:table-cell">Output</th>
+                    <th className="text-left p-2 hidden lg:table-cell w-32">Input</th>
+                    <th className="text-left p-2 hidden lg:table-cell w-32">Output</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -314,33 +314,27 @@ export default function ToolCallsTable({ clientId = null, title = "Tool Call Ana
                       <td className="p-2 text-xs sm:text-sm">
                         {formatDuration(call.execution_time_ms)}
                       </td>
-                      <td className="p-2 hidden lg:table-cell">
-                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {truncateJson(call.input_data, 50)}
+                      <td className="p-2 hidden lg:table-cell w-32">
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded block truncate">
+                          {truncateJson(call.input_data, 25)}
                         </code>
                       </td>
-                      <td className="p-2 hidden lg:table-cell">
+                      <td className="p-2 hidden lg:table-cell w-32">
                         {call.error_message ? (
-                          <span className="text-xs text-destructive">
-                            {call.error_message.length > 50 
-                              ? call.error_message.substring(0, 50) + '...'
+                          <span className="text-xs text-destructive block truncate">
+                            {call.error_message.length > 25 
+                              ? call.error_message.substring(0, 25) + '...'
                               : call.error_message
                             }
                           </span>
                         ) : call.output_json ? (
-                          <div className="flex items-center space-x-1">
-                            <code className="text-xs bg-blue-50 text-blue-800 px-2 py-1 rounded">
-                              {truncateJson(call.output_json, 40)}
-                            </code>
-                            <span className="text-xs bg-blue-100 text-blue-700 px-1 rounded">JSON</span>
-                          </div>
+                          <code className="text-xs bg-blue-50 text-blue-800 px-1 py-0.5 rounded block truncate">
+                            {truncateJson(call.output_json, 25)}
+                          </code>
                         ) : call.output_text ? (
-                          <div className="flex items-center space-x-1">
-                            <code className="text-xs bg-muted px-2 py-1 rounded">
-                              {extractAndTruncateText(call.output_text, 40)}
-                            </code>
-                            <span className="text-xs bg-gray-100 text-gray-700 px-1 rounded">TEXT</span>
-                          </div>
+                          <code className="text-xs bg-muted px-1 py-0.5 rounded block truncate">
+                            {extractAndTruncateText(call.output_text, 25)}
+                          </code>
                         ) : (
                           <span className="text-xs text-muted-foreground">No output</span>
                         )}

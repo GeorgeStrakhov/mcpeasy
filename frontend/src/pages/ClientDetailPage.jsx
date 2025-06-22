@@ -305,7 +305,7 @@ export default function ClientDetailPage() {
             <CardHeader className="space-y-4">
               <div>
                 <CardTitle className="flex items-center text-lg sm:text-xl">
-                  <Pickaxe className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
+                  <Settings className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
                   Tools
                 </CardTitle>
                 <CardDescription className="text-sm">Configure available tools for this client</CardDescription>
