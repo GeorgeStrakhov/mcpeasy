@@ -1,3 +1,5 @@
+- ADMIN: generate system prompt based on available tools and user input!
+
 - TOOL: refactor send_email tool so that postmarker is a service
 
 - FUNC: basic queue health monitoring in the frontend

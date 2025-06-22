@@ -231,9 +231,8 @@ export default function ClientDetailPage() {
           </TabsList>
 
           <TabsContent value="configuration" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
-          {/* API Keys */}
-          <Card>
+            {/* API Keys - Full width at top */}
+            <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center text-lg sm:text-xl">
@@ -292,8 +291,10 @@ export default function ClientDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Tools */}
-          <Card>
+            {/* Tools and Resources - Side by side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+              {/* Tools */}
+              <Card>
             <CardHeader className="space-y-4">
               <div>
                 <CardTitle className="flex items-center text-lg sm:text-xl">
