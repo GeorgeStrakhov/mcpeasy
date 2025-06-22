@@ -57,8 +57,7 @@ const SystemMonitoring = () => {
               className={autoRefresh ? 'bg-green-50 border-green-200' : ''}
             >
               <Activity className="mr-2 h-4 w-4" />
-              <span className="hidden xs:inline">Auto Refresh</span>
-              <span className="xs:hidden">Auto</span> {autoRefresh ? 'On' : 'Off'}
+              <span>Auto Refresh</span> {autoRefresh ? 'On' : 'Off'}
             </Button>
             <Button
               variant="outline"
@@ -66,9 +65,7 @@ const SystemMonitoring = () => {
               onClick={() => refetch()}
               disabled={isLoading}
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden xs:inline">Refresh</span>
-              <span className="xs:hidden">↻</span>
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>

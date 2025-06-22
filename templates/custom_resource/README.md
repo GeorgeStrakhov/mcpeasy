@@ -4,10 +4,7 @@ This template provides a starting point for creating custom MCP resources.
 
 ## Quick Start
 
-1. **Copy this template** to your custom resources repository:
-   ```bash
-   cp -r templates/custom_resource/ your-org-resources/resources/your_resource_name/
-   ```
+1. **Copy this template** to your custom resources src/resources/{yourorg}/your resource
 
 2. **Replace placeholders** in `resource.py`:
    - `RESOURCE_NAME` → your actual resource name (lowercase, no spaces)
@@ -197,6 +194,6 @@ print(content.text)
 ## Next Steps
 
 1. Implement your resource logic
-2. Add it to your deployment configuration
+2. put your resource code into src/resources/{yourorg}/{yourResource}  and don't forget to enable in .env (unless you are using RESOURCES='__all__')
 3. Test in development environment
 4. Deploy and enable for specific clients via admin UI

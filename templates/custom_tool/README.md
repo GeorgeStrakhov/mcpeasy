@@ -4,10 +4,10 @@ This template provides a starting point for creating custom MCP tools.
 
 ## Quick Start
 
-1. **Copy this template** to your custom tools repository:
-   ```bash
-   cp -r templates/custom_tool/ your-org-tools/tools/your_tool_name/
-   ```
+1. **Copy this template** to your custom tools folder inside src/tools/
+
+    e.g. src/tools/yourname/yourtoolname/
+
 
 2. **Replace placeholders** in `tool.py`:
    - `TOOL_NAME` → your actual tool name (lowercase, no spaces)
@@ -124,6 +124,6 @@ print(result)
 ## Next Steps
 
 1. Implement your tool logic
-2. Add it to your deployment configuration
+2. Put code into src/tools/{yourorg}/{yourtool} and don't forget to enable in .env (unless you are using TOOLS='__all__')
 3. Test in development environment
 4. Deploy and enable for specific clients via admin UI

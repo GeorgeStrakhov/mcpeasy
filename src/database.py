@@ -76,11 +76,10 @@ class DatabaseService:
         )
     
     async def initialize(self):
-        """Initialize database - seed data and create superadmin"""
+        """Initialize database - create superadmin"""
         # Create superadmin if no admins exist
         await self._create_superadmin_if_needed()
-        # Seed sample data if knowledge base is empty
-        await self._seed_sample_data()
+
     
     async def close(self):
         """Close database engine"""
@@ -109,63 +108,7 @@ class DatabaseService:
             finally:
                 await session.close()
     
-    async def _seed_sample_data(self):
-        """Seed sample knowledge base data if empty"""
-        try:
-            async with self.get_session() as session:
-                # Check if knowledge base has any data
-                result = await session.execute(select(KnowledgeBase).limit(1))
-                existing = result.scalar_one_or_none()
-                
-                if existing:
-                    logger.debug("Knowledge base already has data, skipping seed")
-                    return
-                
-                logger.info("Seeding sample knowledge base data")
-                
-                # Simple sample data for testing
-                sample_articles = [
-                    {
-                        "title": "Getting Started Guide",
-                        "content": "This is a simple getting started guide for new users. Follow these steps to begin using the system effectively.",
-                        "category": "documentation",
-                        "tags": ["beginner", "guide", "setup"]
-                    },
-                    {
-                        "title": "API Reference",
-                        "content": "Complete API reference documentation. Includes all available endpoints, parameters, and response formats.",
-                        "category": "api",
-                        "tags": ["reference", "api", "technical"]
-                    },
-                    {
-                        "title": "Troubleshooting FAQ",
-                        "content": "Common issues and their solutions. Check here first if you encounter any problems with the system.",
-                        "category": "support",
-                        "tags": ["faq", "troubleshooting", "help"]
-                    },
-                    {
-                        "title": "Company Policies",
-                        "content": "Important company policies and guidelines that all users should be aware of.",
-                        "category": "policy",
-                        "tags": ["policy", "guidelines", "compliance"]
-                    }
-                ]
-                
-                for article_data in sample_articles:
-                    article = KnowledgeBase(
-                        title=article_data["title"],
-                        content=article_data["content"],
-                        category=article_data["category"],
-                        tags=article_data["tags"]
-                    )
-                    session.add(article)
-                
-                await session.commit()
-                logger.info(f"Seeded {len(sample_articles)} knowledge base articles")
-                
-        except Exception as e:
-            logger.error(f"Error seeding sample data: {e}")
-    
+    # Admin Management Methods
     async def _create_superadmin_if_needed(self):
         """Create superadmin user if no admins exist"""
         import os

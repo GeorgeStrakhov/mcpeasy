@@ -1,4 +1,4 @@
-- CLEANUP: delete old knowledge model and pre-population logic
+- CORE: figure out how resources can seed data
 
 - ADMIN: export / import tool configs in the admin. export / import entire DB in the admin.
 

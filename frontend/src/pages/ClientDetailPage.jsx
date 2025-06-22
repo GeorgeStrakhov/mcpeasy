@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { clients, apiKeys, tools } from '../services/api'
+import { clients, apiKeys, tools, resources } from '../services/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -56,7 +56,9 @@ export default function ClientDetailPage() {
   const [showToolRemoveDialog, setShowToolRemoveDialog] = useState(false)
   const [selectedResource, setSelectedResource] = useState(null)
   const [showResourceDialog, setShowResourceDialog] = useState(false)
+  const [showResourceRemoveDialog, setShowResourceRemoveDialog] = useState(false)
   const [selectedToolToAdd, setSelectedToolToAdd] = useState(null)
+  const [selectedResourceToAdd, setSelectedResourceToAdd] = useState(null)
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', clientId],
@@ -123,6 +125,45 @@ export default function ClientDetailPage() {
     },
   })
 
+  const addResourceMutation = useMutation({
+    mutationFn: ({ resourceName, config }) => resources.configure(clientId, resourceName, config),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries(['client', clientId])
+      setSelectedResourceToAdd(null)
+      toast({
+        title: "Resource added",
+        description: `Successfully added ${variables.resourceName}.`,
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "Error adding resource",
+        description: error.message,
+        variant: "destructive",
+      })
+    },
+  })
+
+  const removeResourceMutation = useMutation({
+    mutationFn: (resourceName) => resources.delete(clientId, resourceName),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['client', clientId])
+      setShowResourceRemoveDialog(false)
+      setSelectedResource(null)
+      toast({
+        title: "Resource removed",
+        description: `Successfully removed ${selectedResource?.name}.`,
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "Error removing resource",
+        description: error.message,
+        variant: "destructive",
+      })
+    },
+  })
+
   const handleCreateKey = (e) => {
     e.preventDefault()
     createKeyMutation.mutate({ name: newKeyName })
@@ -170,9 +211,22 @@ export default function ClientDetailPage() {
     setShowToolRemoveDialog(true)
   }
 
+  const handleResourceAdd = (resource) => {
+    // For resources that don't require config, add them directly
+    addResourceMutation.mutate({
+      resourceName: resource.name,
+      config: null
+    })
+  }
+
   const handleResourceConfigure = (resource) => {
     setSelectedResource(resource)
     setShowResourceDialog(true)
+  }
+
+  const handleResourceRemove = (resource) => {
+    setSelectedResource(resource)
+    setShowResourceRemoveDialog(true)
   }
 
   const copyToClipboard = async (text, description) => {
@@ -424,42 +478,122 @@ export default function ClientDetailPage() {
 
           {/* Resources */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg sm:text-xl">
-                <BookOpenText className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
-                Resources
-              </CardTitle>
-              <CardDescription className="text-sm">Configure available resources for this client</CardDescription>
+            <CardHeader className="space-y-4">
+              <div>
+                <CardTitle className="flex items-center text-lg sm:text-xl">
+                  <BookOpenText className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
+                  Resources
+                </CardTitle>
+                <CardDescription className="text-sm">Configure available resources for this client</CardDescription>
+              </div>
+              {/* Add resource dropdown - only show if there are available resources to add */}
+              {client?.resources?.filter(r => !r.is_configured).length > 0 && (
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedResourceToAdd?.name || ''}
+                    onValueChange={(resourceName) => {
+                      const resource = client.resources.find(r => r.name === resourceName)
+                      setSelectedResourceToAdd(resource)
+                    }}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select a resource to add..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {client?.resources
+                        ?.filter(resource => !resource.is_configured)
+                        .map(resource => (
+                          <SelectItem key={resource.name} value={resource.name}>
+                            <div className="flex items-center gap-2">
+                              <span>{resource.name}</span>
+                              <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                                resource.name.includes('/') 
+                                  ? 'bg-purple-100 text-blue-700' 
+                                  : 'bg-blue-100 text-purple-700'
+                              }`}>
+                                {resource.name.includes('/') ? 'CUSTOM' : 'CORE'}
+                              </span>
+                              {resource.requires_config && (
+                                <span className="text-xs text-blue-600">Config required</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={() => {
+                      if (selectedResourceToAdd) {
+                        if (selectedResourceToAdd.requires_config) {
+                          handleResourceConfigure(selectedResourceToAdd)
+                        } else {
+                          handleResourceAdd(selectedResourceToAdd)
+                        }
+                        setSelectedResourceToAdd(null)
+                      }
+                    }}
+                    disabled={!selectedResourceToAdd || addResourceMutation.isPending}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {client?.resources?.map((resource) => (
+                {/* Only show enabled resources */}
+                {client?.resources?.filter(resource => resource.is_configured).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No resources enabled yet. Use the dropdown above to add resources.
+                  </p>
+                ) : (
+                  client?.resources?.filter(resource => resource.is_configured).map((resource) => (
                   <div key={resource.name} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg">
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-medium text-sm sm:text-base">{resource.name}</h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium text-sm sm:text-base">{resource.name}</h3>
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          resource.name.includes('/') 
+                            ? 'bg-purple-100 text-blue-700' 
+                            : 'bg-blue-100 text-purple-700'
+                        }`}>
+                          {resource.name.includes('/') ? 'CUSTOM' : 'CORE'}
+                        </span>
+                      </div>
+                      {resource.description && (
+                        <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
+                      )}
                       {resource.requires_config && (
-                        <p className="text-xs text-muted-foreground">Requires configuration</p>
+                        <p className="text-xs text-blue-600 mt-1">Requires configuration</p>
                       )}
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-2 sm:space-x-2">
-                      <div className={`px-2 py-1 text-xs rounded-full ${
-                        resource.is_configured 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {resource.is_configured ? 'Enabled' : 'Disabled'}
+                      <div className="flex gap-2">
+                        {resource.requires_config && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResourceConfigure(resource)}
+                            className="flex-shrink-0"
+                          >
+                            Configure
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResourceRemove(resource)}
+                          className="flex-shrink-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1 sm:mr-0" />
+                          <span className="sm:hidden">Remove</span>
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleResourceConfigure(resource)}
-                        className="flex-shrink-0"
-                      >
-                        Configure
-                      </Button>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -501,7 +635,13 @@ export default function ClientDetailPage() {
         resource={selectedResource}
         clientId={clientId}
         isOpen={showResourceDialog}
-        onOpenChange={setShowResourceDialog}
+        onOpenChange={(open) => {
+          setShowResourceDialog(open)
+          // Clear the selected resource to add when dialog closes
+          if (!open) {
+            setSelectedResourceToAdd(null)
+          }
+        }}
       />
 
       {/* Create API Key Dialog */}
@@ -604,6 +744,38 @@ export default function ClientDetailPage() {
               className="w-full sm:w-auto bg-destructive hover:bg-destructive/90"
             >
               {removeToolMutation.isPending ? 'Removing...' : 'Remove'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Resource Remove Confirmation Dialog */}
+      <AlertDialog open={showResourceRemoveDialog} onOpenChange={setShowResourceRemoveDialog}>
+        <AlertDialogContent className="w-[95vw] max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Resource</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove "{selectedResource?.name}" from this client? 
+              This will disable the resource and remove any configuration.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel 
+              onClick={() => setShowResourceRemoveDialog(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (selectedResource) {
+                  removeResourceMutation.mutate(selectedResource.name)
+                }
+              }}
+              disabled={removeResourceMutation.isPending}
+              className="w-full sm:w-auto bg-destructive hover:bg-destructive/90"
+            >
+              {removeResourceMutation.isPending ? 'Removing...' : 'Remove'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
