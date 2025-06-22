@@ -1,17 +1,18 @@
 """
-Send Email tool implementation using Postmark - requires per-client configuration
+Send Email tool implementation - requires per-client configuration
 """
 
-import os
 from typing import Any, Dict, Optional
-from pathlib import Path
-import aiohttp
-from postmarker.core import PostmarkClient
 from src.tools.base import BaseTool, ToolResult
+from src.services.email import EmailService
 
 
 class SendEmailTool(BaseTool):
     """Email sending tool with per-client configuration"""
+    
+    def __init__(self):
+        super().__init__()
+        self.email_service = EmailService()
     
     @property
     def name(self) -> str:
@@ -27,58 +28,16 @@ class SendEmailTool(BaseTool):
             "type": "object",
             "properties": {
                 "to": {
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "description": "Single recipient email address",
-                            "format": "email"
-                        },
-                        {
-                            "type": "array",
-                            "description": "Multiple recipient email addresses",
-                            "items": {
-                                "type": "string",
-                                "format": "email"
-                            }
-                        }
-                    ],
-                    "description": "Recipient email address(es) - can be a single string or array of strings"
+                    "type": "string",
+                    "description": "Recipient email address (single email or comma-separated list: 'user1@example.com,user2@example.com')"
                 },
                 "cc": {
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "description": "Single CC email address",
-                            "format": "email"
-                        },
-                        {
-                            "type": "array",
-                            "description": "Multiple CC email addresses",
-                            "items": {
-                                "type": "string",
-                                "format": "email"
-                            }
-                        }
-                    ],
-                    "description": "CC (carbon copy) email address(es) - can be a single string or array of strings"
+                    "type": "string",
+                    "description": "CC (carbon copy) email address (optional, single email or comma-separated list)"
                 },
                 "bcc": {
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "description": "Single BCC email address",
-                            "format": "email"
-                        },
-                        {
-                            "type": "array",
-                            "description": "Multiple BCC email addresses",
-                            "items": {
-                                "type": "string",
-                                "format": "email"
-                            }
-                        }
-                    ],
-                    "description": "BCC (blind carbon copy) email address(es) - can be a single string or array of strings"
+                    "type": "string", 
+                    "description": "BCC (blind carbon copy) email address (optional, single email or comma-separated list)"
                 },
                 "subject": {
                     "type": "string",
@@ -120,157 +79,46 @@ class SendEmailTool(BaseTool):
             "required": ["from_email"]
         }
     
-    async def _download_attachment(self, url: str) -> Optional[Dict[str, Any]]:
-        """Download attachment from URL and return attachment data"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
-                    if response.status != 200:
-                        return None
-                    
-                    # Check content length (25MB limit)
-                    content_length = response.headers.get("Content-Length")
-                    if content_length and int(content_length) > 25 * 1024 * 1024:
-                        return None
-                    
-                    content = await response.read()
-                    
-                    # Double check size after download
-                    if len(content) > 25 * 1024 * 1024:
-                        return None
-                    
-                    # Get filename from URL or content-disposition
-                    filename = None
-                    if "Content-Disposition" in response.headers:
-                        cd = response.headers["Content-Disposition"]
-                        if "filename=" in cd:
-                            filename = cd.split("filename=")[1].strip('"')
-                    
-                    if not filename:
-                        filename = Path(url).name or "attachment"
-                    
-                    return {
-                        "Name": filename,
-                        "Content": content,
-                        "ContentType": response.headers.get("Content-Type", "application/octet-stream")
-                    }
-        except Exception:
-            return None
-    
     async def execute(self, arguments: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> ToolResult:
-        """Execute the send email tool using Postmark"""
+        """Execute the send email tool using the email service"""
         if not config or not config.get("from_email"):
             return ToolResult.error("Email tool requires configuration with 'from_email' address")
         
-        # Extract arguments
-        to_email = arguments.get("to")
-        cc_email = arguments.get("cc")
-        bcc_email = arguments.get("bcc")
+        # Extract arguments and handle comma-separated emails
+        def parse_emails(email_str):
+            """Parse comma-separated email string into list"""
+            if not email_str:
+                return None
+            if isinstance(email_str, str) and "," in email_str:
+                return [email.strip() for email in email_str.split(",") if email.strip()]
+            return email_str
+        
+        to_email = parse_emails(arguments.get("to"))
+        cc_email = parse_emails(arguments.get("cc"))
+        bcc_email = parse_emails(arguments.get("bcc"))
         subject = arguments.get("subject")
         body = arguments.get("body")
         attachment_urls = arguments.get("attachments", [])
-        
-        # For display purposes, convert lists to comma-separated strings
-        def format_for_display(emails):
-            if isinstance(emails, list):
-                return ", ".join(emails)
-            return emails
-        
-        to_display = format_for_display(to_email)
-        cc_display = format_for_display(cc_email) if cc_email else None
-        bcc_display = format_for_display(bcc_email) if bcc_email else None
         
         # Extract configuration
         from_email = config.get("from_email")
         from_name = config.get("from_name")
         
-        # Check if we're in development mode
-        is_development = os.getenv("DEVELOPMENT", "false").lower() == "true"
+        # Send email using the service
+        result = await self.email_service.send_email(
+            to=to_email,
+            subject=subject,
+            body=body,
+            from_email=from_email,
+            from_name=from_name,
+            cc=cc_email,
+            bcc=bcc_email,
+            attachment_urls=attachment_urls,
+            is_html=True
+        )
         
-        if is_development:
-            # Development mode: log email instead of sending
-            print("\n" + "="*60)
-            print("📧 EMAIL LOGGED (Development Mode)")
-            print("="*60)
-            print(f"From: {f'{from_name} <{from_email}>' if from_name else from_email}")
-            print(f"To: {to_display}")
-            if cc_display:
-                print(f"CC: {cc_display}")
-            if bcc_display:
-                print(f"BCC: {bcc_display}")
-            print(f"Subject: {subject}")
-            print(f"Body: {body}")
-            
-            if attachment_urls:
-                print(f"Attachments ({len(attachment_urls)}):")
-                for i, url in enumerate(attachment_urls, 1):
-                    print(f"  {i}. {url}")
-            
-            print("="*60)
-            
-            result_text = f"""Email logged to console (Development Mode)
-From: {f'{from_name} <{from_email}>' if from_name else from_email}
-To: {to_display}"""
-            if cc_display:
-                result_text += f"\nCC: {cc_display}"
-            if bcc_display:
-                result_text += f"\nBCC: {bcc_display}"
-            result_text += f"\nSubject: {subject}\nAttachments: {len(attachment_urls)} URL(s)"
-            return ToolResult.text(result_text)
-        
-        # Production mode: send actual email
-        postmark_token = os.getenv("POSTMARK_API_TOKEN")
-        if not postmark_token:
-            return ToolResult.error("POSTMARK_API_TOKEN environment variable is required")
-        
-        try:
-            # Initialize Postmark client
-            postmark = PostmarkClient(server_token=postmark_token)
-            
-            # Prepare email data - Postmarker accepts both lists and comma-separated strings
-            email_data = {
-                "From": f"{from_name} <{from_email}>" if from_name else from_email,
-                "To": to_email,  # Can be string or list
-                "Subject": subject,
-                "HtmlBody": body
-            }
-            
-            # Add CC and BCC if provided
-            if cc_email:
-                email_data["Cc"] = cc_email  # Can be string or list
-            if bcc_email:
-                email_data["Bcc"] = bcc_email  # Can be string or list
-            
-            # Download and attach files if provided
-            attachments = []
-            if attachment_urls:
-                for url in attachment_urls:
-                    attachment = await self._download_attachment(url)
-                    if attachment:
-                        attachments.append(attachment)
-                    else:
-                        return ToolResult.error(f"Failed to download attachment from {url} (check URL and size < 25MB)")
-                
-                if attachments:
-                    email_data["Attachments"] = attachments
-            
-            # Send email
-            response = postmark.emails.send(**email_data)
-            
-            # Format success message
-            result_message = f"""Email sent successfully via Postmark!
-From: {email_data['From']}
-To: {to_display}"""
-            if cc_display:
-                result_message += f"\nCC: {cc_display}"
-            if bcc_display:
-                result_message += f"\nBCC: {bcc_display}"
-            result_message += f"\nSubject: {subject}\nMessage ID: {response.get('MessageID', 'N/A')}"
-            
-            if attachments:
-                result_message += f"\nAttachments: {len(attachments)} file(s)"
-            
-            return ToolResult.text(result_message)
-            
-        except Exception as e:
-            return ToolResult.error(f"Failed to send email: {str(e)}")
+        # Return appropriate result
+        if result["success"]:
+            return ToolResult.text(result["message"])
+        else:
+            return ToolResult.error(result["error"])
