@@ -1,3 +1,5 @@
+- CORE: figure out how to deal with gitignore or not for custom tools and resources. considering deploy
+
 - ADMIN: export / import tool configs in the admin. export / import entire DB in the admin.
 
 - TOOL: search (behind the scenes can use exa, serpapi, firecrawl)

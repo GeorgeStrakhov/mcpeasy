@@ -65,16 +65,7 @@ Use the enhanced migrate.sh script with the `--custom` flag:
 # This creates a migration named: 20241221_140000_custom_acme_add_invoice_tables.py
 ```
 
-### For Core Changes
 
-Core mcpeasy changes use the standard command:
-
-```bash
-# Generate core migration
-./migrate.sh create "add user preferences"
-
-# This creates a migration named: 20241221_120000_core_add_user_preferences.py
-```
 
 ## Migration Naming Convention
 
